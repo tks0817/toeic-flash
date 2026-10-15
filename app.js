@@ -134,12 +134,12 @@ function renderAccentWord(w){
 let cardFitFrame=0;
 function fitCardLine(el,maximum,minimum){
  if(!el||!el.textContent.trim())return;
- const available=Math.max(0,el.parentElement.clientWidth-40);
+ const available=Math.max(0,el.parentElement.clientWidth-32);
  if(available<40)return;
  const prop=el.id==='front'?'--fit-en':'--fit-ja';
  const setSize=size=>el.style.setProperty(prop,size+'px');
  setSize(maximum);
- const measure=()=>{const range=document.createRange();range.selectNodeContents(el);return range.getBoundingClientRect().width};
+ const measure=()=>el.scrollWidth;
  if(measure()<=available)return;
  let lo=minimum,hi=maximum;
  for(let i=0;i<13;i++){

@@ -1,0 +1,261 @@
+:root{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif;color:#152a42;background:#edf3fa}*{box-sizing:border-box}body{margin:0}header{background:#102236;color:#fff;padding:18px max(16px,env(safe-area-inset-left));display:flex;align-items:center;justify-content:space-between;gap:8px}.brand{display:flex;align-items:center;gap:10px}.brand strong{display:block;font-size:21px}.brand small{font-size:12px;color:#b9d1ea}.logo{background:#56c9b4;border-radius:12px;padding:12px;color:#08283d;font-weight:900}.lock{font-size:12px;white-space:nowrap}main{max-width:780px;margin:auto;padding:18px 14px 65px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:12px 0}.stats div{text-align:center;background:white;border-radius:13px;padding:15px 4px}.stats b{display:block;font-size:27px;color:#0e6882}.stats span{font-size:12px;color:#58708a}nav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:14px 0}button{cursor:pointer;font:inherit;border:0;border-radius:10px;padding:12px 10px;font-weight:600}nav button{font-size:12px;padding:11px 2px;background:#dce6f1;color:#35516c}nav .active,.primary{background:#136e9c;color:white}.secondary{background:#e6eef6;color:#164c70}.danger{background:#ffe2df;color:#993b35}.panel{background:white;border-radius:16px;padding:18px;margin-top:10px;box-shadow:0 5px 18px #17365a12}.panel[hidden]{display:none}.head,.actions{display:flex;justify-content:space-between;gap:8px;align-items:center}.actions{margin:12px 0}.actions>*{flex:1;min-width:0}h1{font-size:19px;margin:6px 0 15px}h2{font-size:16px;margin:23px 0 10px}.muted{color:#5b7084;font-size:13px;line-height:1.7}.notice{padding:12px;background:#e5f5f0;border-radius:10px;font-size:13px;line-height:1.6;margin:10px 0}.flashcard{width:100%;min-height:250px;background:linear-gradient(140deg,#164772,#102236);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;margin:16px 0}.flashcard strong{font-size:clamp(23px,7vw,39px);word-break:break-word}.flashcard span{font-size:20px}.flashcard small{color:#afc9df}.full{width:100%;margin-top:10px}.upload{display:block;text-align:center;background:#ebf5fc;border:2px dashed #81bad4;border-radius:12px;padding:18px;margin:14px 0;font-weight:600}.upload input{display:block;margin:12px auto 0;max-width:100%;font-size:13px}.preview{max-width:100%;max-height:230px;object-fit:contain;display:block;margin:10px auto}.preview[hidden]{display:none}input,textarea,select{font:inherit;border:1px solid #c9d5e3;border-radius:9px;padding:10px;width:100%;background:white}select{width:auto;max-width:54%}label{display:block;margin:12px 0 5px;font-size:13px;font-weight:600}details{margin-top:15px;border-top:1px solid #e5edf5;padding-top:14px}summary{cursor:pointer}.word,.candidate{display:flex;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid #e7edf3}.word>div,.candidate>div{flex:1;min-width:0}.word strong,.word small{display:block;overflow-wrap:anywhere}.word small{color:#607488;font-size:12px}.word button{padding:8px}.candidate input[type=checkbox]{width:20px;flex:none}.candidate input[type=text]{margin:3px 0}.candidate>div{display:grid;gap:4px}#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#142c45;color:white;border-radius:12px;padding:12px 18px;display:none;max-width:90%;text-align:center}dialog{width:min(92vw,460px);border:0;border-radius:16px;padding:22px}dialog::backdrop{background:#10223699}button:disabled{opacity:.45;cursor:not-allowed}
+
+.word-image{margin:10px auto 0;width:min(100%,240px);pointer-events:none}.word-image svg{display:block;width:100%;height:auto}.notice label{display:block;margin:10px 0}.notice select{width:100%}
+
+/* v34: iPhone word-list layout. Global input width:100% previously expanded checkboxes. */
+#wordList{min-width:0;width:100%;overflow-x:hidden}
+#wordList .word{display:grid;grid-template-columns:24px minmax(0,1fr) auto auto;gap:8px;align-items:center;width:100%;min-width:0}
+#wordList .word>input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;box-sizing:border-box;width:20px;height:20px;min-width:20px;max-width:20px;margin:0;padding:0;justify-self:center;flex:none}
+#wordList .word>div{min-width:0;width:auto;flex:none;overflow:hidden}
+#wordList .word strong,#wordList .word small{display:block;overflow-wrap:break-word;word-break:normal;white-space:normal;line-height:1.5}
+#wordList .word button{width:auto;min-width:0;white-space:nowrap;flex:none;padding:9px 10px;font-size:14px}
+@media(max-width:380px){#wordList .word{gap:5px;grid-template-columns:22px minmax(0,1fr) auto auto}#wordList .word button{padding:8px 7px;font-size:13px}}
+
+/* v35: disable double-tap zoom without blocking accessibility pinch zoom. */
+html,body,button,a,input,select,textarea,summary{touch-action:manipulation}
+/* v35: flashcards are at the top of their own tab; timer/stats in a separate tab. */
+nav{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+nav button{min-width:0;padding:11px 1px;font-size:clamp(10px,2.6vw,12px);line-height:1.3;overflow-wrap:anywhere}
+#timer .stats{margin:8px 0 18px}
+#timer #timePanel{margin-top:10px}
+#timer #resetTimer{display:block;margin-top:12px}
+@media(max-width:360px){nav button{font-size:10px}}
+
+/* v41 controls */
+.study-settings{display:grid;gap:8px;padding:8px 0}.study-settings label{margin:0}.study-settings select{max-width:100%;width:100%;margin-top:5px}.study-settings #autoControls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.study-settings #autoControls small{grid-column:1/-1}.study-settings #autoControls input{margin-top:5px}.study-settings #autoControls button{white-space:nowrap}.daily-add{display:flex;gap:8px;align-items:center}.daily-add input{min-width:0}.daily-row{display:grid;grid-template-columns:minmax(0,1fr) 85px auto auto;gap:7px;align-items:center;border-bottom:1px solid #ccd8e4;padding:8px 0}.daily-row input{min-width:0}.daily-row button{padding:9px}.word-image[hidden],#autoControls[hidden],#miss[hidden],#know[hidden]{display:none!important}
+:root[data-theme="dark"]{color-scheme:dark;background:#0c1420;color:#e7edf5}
+:root[data-theme="dark"] body{background:#0c1420;color:#e7edf5}
+:root[data-theme="dark"] header{background:#060e19}
+:root[data-theme="dark"] .panel,:root[data-theme="dark"] .stats div{background:#172334;color:#e7edf5;box-shadow:none}
+:root[data-theme="dark"] .notice{background:#233449;color:#e7edf5}
+:root[data-theme="dark"] .muted,:root[data-theme="dark"] .word small,:root[data-theme="dark"] .stats span{color:#b7c9dc}
+:root[data-theme="dark"] nav button,:root[data-theme="dark"] .secondary{background:#30475e;color:#f0f5fb}
+:root[data-theme="dark"] nav .active,:root[data-theme="dark"] .primary{background:#176f9c;color:#fff}
+:root[data-theme="dark"] input,:root[data-theme="dark"] textarea,:root[data-theme="dark"] select,:root[data-theme="dark"] dialog{background:#101b29;color:#f3f6fb;border-color:#52667a}
+:root[data-theme="dark"] .upload{background:#233449;border-color:#527b9b;color:#f3f6fb}
+:root[data-theme="dark"] .danger{background:#603333;color:#ffe7e7}
+:root[data-theme="dark"] .word,:root[data-theme="dark"] .candidate{border-color:#415269}
+:root[data-theme="dark"] .stats b{color:#7fd8f2}
+
+#bugList{max-height:280px;overflow:auto;overflow-wrap:anywhere}.bug-entry{padding:.6rem;border-bottom:1px solid var(--border,#aaa);font-size:.85rem}#autoPronounce{width:auto;min-width:auto}
+
+/* v45: explicitly preserve visibility of the selected top-level panel. */
+main > section.panel[hidden]{display:none!important}
+
+/* v46 */
+.version-chip{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 8px);z-index:100;background:#102236;color:#fff;padding:3px 7px;border-radius:7px;font-size:12px;box-shadow:0 2px 5px #0004;pointer-events:none}
+.flashcard .card-count{font-size:13px!important;opacity:.75}
+#autoSeconds,#autoRepeats,#autoPronounce,#autoJapanese{font-size:16px}
+#autoControls input,#autoControls select{font-size:16px!important}
+
+/* v47: allow vertical scrolling, handle horizontal card swipes in JS. */
+#card{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.swipe-help{margin:0 0 8px;text-align:center;font-size:12px}
+
+/* v49: align speech checkboxes without narrow full-width input layout */
+.study-settings label:has(input[type="checkbox"]){display:flex;align-items:center;gap:10px;line-height:1.45}
+.study-settings label input[type="checkbox"]{width:22px!important;height:22px;min-width:22px;flex:0 0 22px;margin:0}
+.goal-controls{display:flex;align-items:center;gap:8px}.goal-controls input{min-width:0;flex:1;font-size:16px}.goal-controls button{flex:0 0 auto}
+#goalAchievement{font-weight:700}
+
+/* v51: full-width accessible controls and settings-only configuration */
+.study-start-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin:12px 0}
+.study-start-controls button{display:block;width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;padding:12px 8px;font-size:clamp(13px,3.5vw,16px);line-height:1.35}
+.preferences-settings{display:block;padding:0}
+.preferences-settings>label{display:block;margin:14px 0}
+.preferences-settings>label:has(input[type="checkbox"]){display:flex;align-items:center;gap:10px;line-height:1.5}
+.preferences-settings input[type="checkbox"]{width:22px!important;height:22px;min-width:22px;flex:0 0 22px;margin:0}
+.preferences-settings select{display:block;width:100%;max-width:100%;font-size:16px}
+.preferences-settings #autoControls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:end;margin-top:12px}
+.preferences-settings #autoControls label{min-width:0;margin:0}
+.preferences-settings #autoControls input,.preferences-settings #autoControls select{width:100%;min-width:0;max-width:100%;font-size:16px}
+.preferences-settings #autoControls small{grid-column:1/-1}
+@media(max-width:360px){.study-start-controls{grid-template-columns:1fr}.preferences-settings #autoControls{grid-template-columns:1fr}}
+
+/* v52: compact study mode on iPhone. Other tabs retain normal scrolling. */
+body.study-fullscreen{height:100dvh;overflow:hidden}
+body.study-fullscreen header{display:none}
+body.study-fullscreen main{height:100dvh;max-height:100dvh;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 7px) 10px calc(env(safe-area-inset-bottom) + 6px);overflow:hidden}
+body.study-fullscreen main>nav{flex:0 0 auto;margin:0 0 6px;gap:4px}
+body.study-fullscreen main>nav button{padding:8px 1px;min-height:42px}
+body.study-fullscreen #study{flex:1 1 auto;min-height:0;display:flex!important;flex-direction:column;gap:5px;margin:0;padding:10px;border-radius:14px;overflow:hidden}
+body.study-fullscreen #study .head{flex:0 0 auto;gap:8px}
+body.study-fullscreen #study h1{font-size:16px;margin:0}
+body.study-fullscreen #study #filter{font-size:16px;min-height:38px;padding:5px;max-width:65%}
+body.study-fullscreen #study .study-start-controls{flex:0 0 auto;margin:0;gap:7px}
+body.study-fullscreen #study .study-start-controls button{font-size:14px;padding:7px;min-height:38px}
+body.study-fullscreen #study #progress{margin:0;font-size:12px;line-height:1.3}
+body.study-fullscreen #study .swipe-help{margin:0;font-size:12px;line-height:1.3}
+body.study-fullscreen #study #card{flex:1 1 auto;min-height:0;max-height:none;margin:0;padding:12px 8px;gap:clamp(7px,2dvh,18px);overflow-y:auto;overscroll-behavior:contain}
+body.study-fullscreen #study #card strong{font-size:clamp(24px,7vw,37px)}
+body.study-fullscreen #study #card span{font-size:clamp(13px,3.8vw,19px)}
+body.study-fullscreen #study #card #answerStats{font-size:12px!important}
+body.study-fullscreen #study #speak{flex:0 0 auto;margin:0;padding:8px;min-height:38px}
+body.study-fullscreen #study .actions{flex:0 0 auto;margin:0;gap:6px}
+body.study-fullscreen #study .actions button{padding:8px 3px;min-height:38px;font-size:clamp(12px,3.4vw,15px)}
+body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 45px);font-size:10px;padding:2px 5px;opacity:.82}
+@media(max-height:690px){
+ body.study-fullscreen #study{gap:3px;padding:7px}
+ body.study-fullscreen #study .swipe-help{font-size:11px}
+ body.study-fullscreen #study .actions button,body.study-fullscreen #study #speak{min-height:33px;padding:5px}
+}
+
+/* v53: keep app branding on every tab while preserving compact study viewport */
+body.study-fullscreen header{display:flex!important;flex:0 0 auto;padding:calc(env(safe-area-inset-top) + 5px) 14px 6px;min-height:0}
+body.study-fullscreen header .logo{padding:6px 9px;font-size:14px;border-radius:8px}
+body.study-fullscreen header .brand strong{font-size:16px}
+body.study-fullscreen main{height:calc(100dvh - 57px - env(safe-area-inset-top));max-height:calc(100dvh - 57px - env(safe-area-inset-top));padding:5px 10px calc(env(safe-area-inset-bottom) + 6px)}
+body.study-fullscreen #study{justify-content:center}
+body.study-fullscreen #study #card{flex:1 1 auto;max-height:min(53dvh,540px);min-height:140px;align-self:stretch}
+body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 9px)}
+/* Candidate rows: source line spans width; checkbox + fields stay in container. */
+#candidateList{width:100%;min-width:0;overflow-x:hidden}
+#candidateList .candidate{display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:10px;row-gap:6px;align-items:start;width:100%;min-width:0}
+#candidateList .candidate>.candidate-source{grid-column:1/-1;min-width:0;overflow-wrap:anywhere;line-height:1.45}
+#candidateList .candidate>input[type=checkbox]{grid-column:1;width:20px!important;height:20px;min-width:20px;margin:10px 0 0;padding:0;appearance:auto;-webkit-appearance:checkbox}
+#candidateList .candidate>div{grid-column:2;min-width:0;width:100%;display:grid;gap:6px}
+#candidateList .candidate>div>input,#candidateList .candidate>div>textarea,#candidateList .candidate>div>select{width:100%;max-width:100%;min-width:0;font-size:16px}
+#candidateList .candidate>div>label{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+#candidateList .candidate>div>label input[type=checkbox]{width:20px!important;height:20px;flex:0 0 20px;min-width:20px;margin:0;padding:0;appearance:auto;-webkit-appearance:checkbox}
+
+/* v55: center the study content vertically and use the lower half of the viewport.
+   Do not affect other tabs or change the flashcard's text size. */
+body.study-fullscreen{min-height:100dvh;display:flex;flex-direction:column}
+body.study-fullscreen header{flex:0 0 auto}
+body.study-fullscreen main{flex:1 1 auto;height:auto!important;max-height:none!important;min-height:0;width:100%;display:flex;flex-direction:column}
+body.study-fullscreen #study{flex:1 1 auto;min-height:0;justify-content:space-evenly!important;gap:clamp(5px,1.2dvh,14px)}
+body.study-fullscreen #study #card{flex:1 1 auto;min-height:140px;max-height:none!important;height:auto;margin:clamp(8px,1.7dvh,22px) 0}
+@media(min-height:740px){body.study-fullscreen #study #card{max-height:57dvh!important}}
+
+/* v56: iOS Safari horizontal gestures on card, keep vertical scroll */
+#card,#card *{touch-action:pan-y!important;-webkit-user-select:none;user-select:none}
+#card{overscroll-behavior-x:contain}
+
+/* v59: compact reorder controls on iPhone */
+#wordList .word{grid-template-columns:24px 38px minmax(0,1fr) auto auto}
+#wordList .word .reorder-controls{display:flex;flex-direction:column;gap:3px;width:38px;overflow:visible}
+#wordList .word .reorder-controls button{padding:4px 6px;min-height:28px;font-size:15px;line-height:1}
+@media(max-width:380px){#wordList .word{grid-template-columns:22px 32px minmax(0,1fr) auto auto;gap:4px}#wordList .word .reorder-controls{width:32px}}
+
+/* v60: drag handle for touch reorder */
+#wordList .word{grid-template-columns:24px 42px minmax(0,1fr) auto auto}
+#wordList .word .drag-handle{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-size:27px;line-height:1;min-height:48px;padding:5px;cursor:grab}
+#wordList .word.dragging{background:#e5f4ff;border-radius:9px;box-shadow:0 0 0 2px #1677a7;opacity:.8}
+#wordList .word.drag-over{box-shadow:inset 0 -4px 0 #1688bd}
+@media(max-width:380px){#wordList .word{grid-template-columns:22px 36px minmax(0,1fr) auto auto;gap:4px}}
+
+
+/* v61: explicit reorder affordances for iPhone */
+.order-number{font-weight:700;min-width:2em;text-align:center;align-self:center;color:var(--muted,#566)}
+.move-word-button{white-space:nowrap;min-width:4.5em}
+.word.move-source{outline:3px solid #1683ca;outline-offset:-3px}
+.candidate-order{display:flex;gap:8px;margin:6px 0}
+.candidate-order button{min-height:42px}
+@media(max-width:600px){.word{flex-wrap:wrap}.word>div:not(.candidate-order){min-width:45%;flex:1}.move-word-button{min-height:44px}}
+
+/* v62: Match study-tab app branding to the full-size header on the Study Time tab. */
+body.study-fullscreen header{padding:18px max(16px,env(safe-area-inset-left))!important;min-height:0;gap:8px}
+body.study-fullscreen header .brand{gap:10px}
+body.study-fullscreen header .logo{padding:12px!important;font-size:inherit!important;border-radius:12px!important}
+body.study-fullscreen header .brand strong{font-size:21px!important}
+body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 8px)!important;font-size:12px!important;padding:3px 7px!important;opacity:1!important}
+
+/* v63: clearer word controls, no three-bar handle */
+#wordList .word{display:grid;grid-template-columns:28px 25px minmax(0,1fr) auto;gap:10px;align-items:center}
+#wordList .word>div.word-edit-actions{grid-column:3/-1;display:flex;gap:18px;justify-content:flex-end;overflow:visible;width:100%;padding:2px 0 10px}
+#wordList .word .word-edit-actions button{min-width:76px;min-height:44px}
+#wordList .word .move-word-button{min-height:44px}
+.words-quick-import{margin-top:28px;padding:16px}
+.words-quick-import textarea{width:100%;margin-top:12px}
+@media(max-width:390px){#wordList .word{grid-template-columns:24px 22px minmax(0,1fr) auto;gap:6px}#wordList .word .word-edit-actions button{min-width:72px}}
+
+/* v64: clear, separated actions for narrow iPhones */
+#wordList .word-edit-actions{gap:20px!important;justify-content:flex-end!important;flex-wrap:wrap}
+#wordList .word-edit-actions button{min-width:82px!important;margin:0!important}
+#wordList .drag-handle{display:none!important}
+.words-quick-import>button{margin-top:12px;min-height:48px}
+
+/* v66: consistent navigation position on the study and study-time screens */
+body.study-fullscreen main{padding-top:18px!important;padding-left:14px!important;padding-right:14px!important}
+body.study-fullscreen main>nav{margin:14px 0!important;gap:4px}
+body.study-fullscreen #study{min-height:0}
+.page-up{display:block;min-height:48px;max-width:220px;margin:24px 0 4px!important;text-align:center}
+#wordsQuickAdd{min-height:48px;margin-top:14px}
+
+/* v67: study navigation matches the other tabs (same dimensions and typography). */
+body.study-fullscreen main>nav{width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:14px 0!important}
+body.study-fullscreen main>nav button{font-size:clamp(10px,2.6vw,12px);line-height:1.3;padding:11px 1px;min-height:0;min-width:0;overflow-wrap:anywhere}
+
+/* v68: iOS Safari focuses inputs below 16px by zooming the viewport */
+#editor input,#editor textarea,#editor select{font-size:16px!important;line-height:1.4;min-height:44px}
+.words-head-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.words-head-actions button{font-size:14px;padding:10px 9px;min-height:44px}
+@media(max-width:390px){.words-head-actions button{font-size:13px;padding:9px 6px}}
+
+/* v70 */
+.yellow-marker{background:#ffe35c!important;color:#192334!important;border-radius:5px;padding:0 5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.marker-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px}
+.marker-controls button{min-height:44px;font-size:13px;padding:8px 5px}
+.header-go-bottom{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 44px);z-index:101;padding:7px 9px;font-size:12px;box-shadow:0 3px 8px #0003}
+.header-go-bottom[hidden]{display:none!important}
+
+/* v71: larger flashcard, uncluttered swipe-first study screen */
+#study .swipe-help,#study .marker-controls,#study .hidden-navigation{display:none!important}
+#study #card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:clamp(390px,62dvh,760px);height:auto;gap:clamp(18px,3dvh,30px);padding:58px 20px 58px;overflow-y:auto}
+body.study-fullscreen #study #card{flex:1 1 auto;min-height:0;max-height:none!important;height:auto;gap:clamp(14px,2.5dvh,28px);padding:56px 18px 54px}
+#study #card #front,body.study-fullscreen #study #card #front{font-size:clamp(34px,9vw,52px)!important;line-height:1.25;overflow-wrap:anywhere}
+#study #card #back,body.study-fullscreen #study #card #back{font-size:clamp(22px,6vw,32px)!important;line-height:1.4;white-space:pre-line;overflow-wrap:anywhere}
+#study #card #pronunciation[hidden]{display:none!important}
+#study #card .card-progress{position:absolute;right:14px;top:12px;font-size:clamp(14px,3.5vw,18px)!important;opacity:.9;color:#eaf5ff}
+#study #card .card-view-count{position:absolute;right:14px;bottom:12px;font-size:clamp(12px,3vw,15px)!important;opacity:.9;color:#eaf5ff}
+#study #speak,body.study-fullscreen #study #speak{display:block;width:100%;font-size:clamp(29px,8vw,38px)!important;min-height:58px!important;padding:7px!important;line-height:1.2}
+body.study-fullscreen #study{justify-content:stretch!important}
+#study #card .yellow-marker{display:inline}
+
+/* v72: mark stress above the stressed letter */
+#study #front ruby.stress-ruby{ruby-position:over;display:inline-ruby;white-space:nowrap}
+#study #front ruby.stress-ruby rt{font-size:.40em;line-height:1;font-weight:800;color:inherit;text-align:center}
+#study #front{padding-top:.2em}
+
+/* v73: position stress glyph without shifting the letter's baseline */
+#study #front .stress-letter{
+  display:inline-block;
+  position:relative;
+  vertical-align:baseline;
+  line-height:inherit;
+}
+#study #front .stress-accent{
+  position:absolute;
+  left:50%;
+  top:-.64em;
+  transform:translateX(-50%);
+  font-size:.44em;
+  line-height:1;
+  font-weight:800;
+  pointer-events:none;
+}
+#study #front{padding-top:.42em}
+
+/* v74: clear, high-contrast stress mark; keep stressed letter at full size and baseline */
+#study #card #front .stress-letter,
+body.study-fullscreen #study #card #front .stress-letter{
+  font-size:1em!important;line-height:inherit!important;vertical-align:baseline;
+  display:inline-block;position:relative;overflow:visible;
+}
+#study #card #front .stress-accent,
+body.study-fullscreen #study #card #front .stress-accent{
+  position:absolute;top:-.48em;left:50%;transform:translateX(-50%);
+  font-size:.70em!important;line-height:1!important;font-weight:900!important;
+  color:#ffdb33!important;text-shadow:0 1px 2px #272727,0 0 3px #272727;
+  white-space:nowrap;z-index:2;pointer-events:none;
+}
+#study #card #front{overflow:visible;padding-top:.60em}
+
+/* v75: black accent and 1.5x English/Japanese card typography */
+#study #card #front,body.study-fullscreen #study #card #front{font-size:clamp(51px,13.5vw,78px)!important;line-height:1.24;overflow-wrap:anywhere}
+#study #card #back,body.study-fullscreen #study #card #back{font-size:clamp(33px,9vw,48px)!important;line-height:1.35;white-space:pre-line;overflow-wrap:anywhere}
+#study #card #front .stress-accent,body.study-fullscreen #study #card #front .stress-accent{color:#000!important;text-shadow:0 0 2px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.7)!important}
+
+/* v77: Restore missing stylesheet and keep fitted text on a single line */
+#study #card #front,body.study-fullscreen #study #card #front{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;font-size:var(--fit-en,clamp(51px,13.5vw,78px))!important;max-width:100%;min-width:0;display:block}
+#study #card #back,body.study-fullscreen #study #card #back{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;font-size:var(--fit-ja,clamp(33px,9vw,48px))!important;max-width:100%;min-width:0;display:block}
