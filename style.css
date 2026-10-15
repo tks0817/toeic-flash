@@ -159,3 +159,18 @@ body.study-fullscreen header .brand{gap:10px}
 body.study-fullscreen header .logo{padding:12px!important;font-size:inherit!important;border-radius:12px!important}
 body.study-fullscreen header .brand strong{font-size:21px!important}
 body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 8px)!important;font-size:12px!important;padding:3px 7px!important;opacity:1!important}
+
+/* v63: clearer word controls, no three-bar handle */
+#wordList .word{display:grid;grid-template-columns:28px 25px minmax(0,1fr) auto;gap:10px;align-items:center}
+#wordList .word>div.word-edit-actions{grid-column:3/-1;display:flex;gap:18px;justify-content:flex-end;overflow:visible;width:100%;padding:2px 0 10px}
+#wordList .word .word-edit-actions button{min-width:76px;min-height:44px}
+#wordList .word .move-word-button{min-height:44px}
+.words-quick-import{margin-top:28px;padding:16px}
+.words-quick-import textarea{width:100%;margin-top:12px}
+@media(max-width:390px){#wordList .word{grid-template-columns:24px 22px minmax(0,1fr) auto;gap:6px}#wordList .word .word-edit-actions button{min-width:72px}}
+
+/* v64: clear, separated actions for narrow iPhones */
+#wordList .word-edit-actions{gap:20px!important;justify-content:flex-end!important;flex-wrap:wrap}
+#wordList .word-edit-actions button{min-width:82px!important;margin:0!important}
+#wordList .drag-handle{display:none!important}
+.words-quick-import>button{margin-top:12px;min-height:48px}
