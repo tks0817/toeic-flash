@@ -38,3 +38,6 @@ nav button{min-width:0;padding:11px 1px;font-size:clamp(10px,2.6vw,12px);line-he
 :root[data-theme="dark"] .stats b{color:#7fd8f2}
 
 #bugList{max-height:280px;overflow:auto;overflow-wrap:anywhere}.bug-entry{padding:.6rem;border-bottom:1px solid var(--border,#aaa);font-size:.85rem}#autoPronounce{width:auto;min-width:auto}
+
+/* v45: explicitly preserve visibility of the selected top-level panel. */
+main > section.panel[hidden]{display:none!important}
