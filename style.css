@@ -191,3 +191,10 @@ body.study-fullscreen main>nav button{font-size:clamp(10px,2.6vw,12px);line-heig
 .words-head-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .words-head-actions button{font-size:14px;padding:10px 9px;min-height:44px}
 @media(max-width:390px){.words-head-actions button{font-size:13px;padding:9px 6px}}
+
+/* v70 */
+.yellow-marker{background:#ffe35c!important;color:#192334!important;border-radius:5px;padding:0 5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.marker-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px}
+.marker-controls button{min-height:44px;font-size:13px;padding:8px 5px}
+.header-go-bottom{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 44px);z-index:101;padding:7px 9px;font-size:12px;box-shadow:0 3px 8px #0003}
+.header-go-bottom[hidden]{display:none!important}
