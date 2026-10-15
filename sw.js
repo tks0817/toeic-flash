@@ -1,5 +1,5 @@
 'use strict';
-const CACHE='toeicflash-private-v60';
+const CACHE='toeicflash-private-v61';
 const FILES=['./','./index.html','./app.js','./semantic-images.js','./style.css','./manifest.webmanifest','./icon.svg'];
 // Third-party OCR assets are fetched directly by Safari. Do not intercept or
 // cache opaque cross-origin responses in the app service worker: failed/opaque

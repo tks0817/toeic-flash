@@ -100,7 +100,7 @@ function dbReplace(items){return new Promise((res,rej)=>{let tx=db.transaction(S
 function save(){const snapshot=structuredClone(words);persistQueue=persistQueue.catch(()=>{}).then(()=>dbReplace(snapshot));return persistQueue.catch(e=>{console.error('保存に失敗',e);reportBug('単語保存',e);toast('保存失敗。データを確認してください');throw e})}
 function sanitize(w){if(!w||typeof w.en!=='string'||typeof w.ja!=='string')return null;let en=normalize(w.en).slice(0,100),ja=clean(w.ja).slice(0,500);if(!en||!ja)return null;return {id:typeof w.id==='string'&&w.id.length<150?w.id:uid(),en,ja,status:['new','known','missed'].includes(w.status)?w.status:'new',...(typeof w.reviewedAt==='string'?{reviewedAt:w.reviewedAt}:{}),viewCount:Math.max(0,Math.floor(Number(w.viewCount)||0)),correctCount:Math.max(0,Math.floor(Number(w.correctCount)||0)),wrongCount:Math.max(0,Math.floor(Number(w.wrongCount)||0)),...(typeof w.ipa==='string'?{ipa:w.ipa.slice(0,80)}:{}),kind:['headword','example'].includes(w.kind)?w.kind:'headword',note:typeof w.note==='string'?w.note.slice(0,500):'',...(Number.isSafeInteger(w.order)&&w.order>=0?{order:w.order}:{})}}
 function legacyRead(){try{const data=JSON.parse(localStorage.getItem(LEGACY)||'null');return Array.isArray(data)?data.map(sanitize).filter(Boolean):[]}catch(e){console.warn('旧データの読み取り失敗',e);return []}}
-function mergeIncoming(incoming){const byId=new Map(words.map(w=>[w.id,w])),byEn=new Map(words.map(w=>[normalize(w.en),w]));let n=0;for(let w of incoming){if(byId.has(w.id)||byEn.has(normalize(w.en)))continue;words.push(w);byId.set(w.id,w);byEn.set(normalize(w.en),w);n++}ensureWordOrder();return n}
+function mergeIncoming(incoming){ensureWordOrder();const byId=new Map(words.map(w=>[w.id,w])),byEn=new Map(words.map(w=>[normalize(w.en),w]));let n=0;for(let w of incoming){if(byId.has(w.id)||byEn.has(normalize(w.en)))continue;words.push(w);byId.set(w.id,w);byEn.set(normalize(w.en),w);n++}ensureWordOrder();return n}
 async function migrate(){let old=legacyRead();let added=mergeIncoming(old);if(added)await save();return {found:old.length,added}}
 function stats(){$('total').textContent=words.length;$('learned').textContent=words.filter(w=>w.status==='known').length;$('weak').textContent=words.filter(w=>w.status!=='known').length}
 function reviewScore(w){return (w.wrongCount||0)*3-(w.correctCount||0)+(w.status==='missed'?3:0)+(w.status==='new'?1:0)}
@@ -157,7 +157,7 @@ function tab(id){
  document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id);b.setAttribute('aria-selected',String(b.dataset.tab===id))});
  try{if(id==='words')drawWords();if(id==='study')rebuild(false,false,true);if(id==='timer')renderDaily()}catch(e){reportBug('画面表示 '+id,e);console.error(e)}
 }
-let selectedIds=new Set();
+let selectedIds=new Set();let movingWordId=null;
 // Stable user-defined order; saved with each card in IndexedDB.
 function ensureWordOrder(){
  const used=new Set();let next=Math.max(-1,...words.map(w=>Number.isSafeInteger(w.order)?w.order:-1))+1;
@@ -174,7 +174,7 @@ async function moveWord(id,step){
  try{await save()}catch(e){const m=new Map(previous.map(w=>[w.id,w.order]));words.forEach(w=>w.order=m.get(w.id));words.sort((a,b)=>a.order-b.order);return}
  drawWords();rebuild(false,false);toast('単語の順番を保存しました');
 }
-// v60: long-press drag ordering with touch/pointer support (iOS Safari).
+// v61: long-press drag ordering with touch/pointer support (iOS Safari).
 let reorderDrag=null;
 function installDragHandle(handle,row,id){
  let pressTimer=null,startX=0,startY=0,pointerId=null,active=false;
@@ -213,7 +213,32 @@ function installDragHandle(handle,row,id){
  handle.addEventListener('lostpointercapture',()=>{if(pointerId!==null){pointerId=null;finish(false)}});
  handle.addEventListener('contextmenu',e=>e.preventDefault());
 }
-function drawWords(){let root=$('wordList');root.replaceChildren();let q=normalize($('search').value);let arr=words.filter(w=>normalize(w.en).includes(q)||w.ja.includes(q));const reorderEnabled=!q;$('orderHint').textContent=reorderEnabled?'≡ を長押しして上下にドラッグすると並べ替えできます。変更は自動保存されます。':'順番変更は検索を解除すると使えます。';$('selectionCount').textContent=`${selectedIds.size}語選択中`;if(!arr.length){let p=document.createElement('p');p.className='muted';p.textContent='該当する単語がありません';root.append(p)}for(let w of arr){let el=document.createElement('div');el.className='word';let cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedIds.has(w.id);cb.setAttribute('aria-label',w.en+' を選択');cb.onchange=()=>{if(cb.checked)selectedIds.add(w.id);else selectedIds.delete(w.id);$('selectionCount').textContent=`${selectedIds.size}語選択中`};let text=document.createElement('div');let b=document.createElement('strong');b.textContent=w.en;let small=document.createElement('small');small.textContent=(w.kind==='example'?'📌 例文重要語句 · ':'')+w.ja+(w.note?' · 補足あり':'')+' · '+({new:'未学習',known:'覚えた',missed:'復習対象'}[w.status]||'未学習')+` · 利用${w.viewCount||0}回 · 正解${w.correctCount||0}回`;text.append(b,small);let edit=document.createElement('button');edit.className='secondary';edit.textContent='編集';edit.onclick=()=>editor(w);let del=document.createElement('button');del.className='danger';del.textContent='削除';del.onclick=async()=>{if(!confirm(`${w.en} を削除しますか？`))return;words=words.filter(x=>x.id!==w.id);selectedIds.delete(w.id);await save();drawWords();rebuild()};let handle=document.createElement('button');handle.type='button';handle.className='drag-handle secondary';handle.textContent='≡';handle.title='長押しして並べ替え';handle.setAttribute('aria-label',w.en+' を長押しして並べ替え');handle.disabled=!reorderEnabled;el.dataset.wordId=w.id;installDragHandle(handle,el,w.id);el.append(cb,handle,text,edit,del);root.append(el)}}
+function beginWordMove(id){
+ movingWordId=movingWordId===id?null:id;
+ drawWords();
+ if(movingWordId)toast('移動先の単語にある「ここへ移動」を押してください');
+}
+async function placeWordBefore(targetId){
+ const id=movingWordId;
+ if(!id||id===targetId){movingWordId=null;drawWords();return}
+ const before=words.map(w=>({id:w.id,order:w.order}));
+ const from=words.findIndex(w=>w.id===id),to=words.findIndex(w=>w.id===targetId);
+ if(from<0||to<0)return;
+ const [item]=words.splice(from,1);
+ const newIndex=words.findIndex(w=>w.id===targetId);
+ words.splice(newIndex,0,item);words.forEach((w,i)=>w.order=i);
+ movingWordId=null;
+ try{await save();drawWords();rebuild(false,false);toast('選んだ位置へ移動しました')}
+ catch(e){const old=new Map(before.map(w=>[w.id,w.order]));words.forEach(w=>w.order=old.get(w.id));words.sort((a,b)=>a.order-b.order);drawWords()}
+}
+function drawWords(){let root=$('wordList');root.replaceChildren();let q=normalize($('search').value);let arr=words.filter(w=>normalize(w.en).includes(q)||w.ja.includes(q));const reorderEnabled=!q;
+ if(!reorderEnabled)movingWordId=null;
+ $('orderHint').textContent=reorderEnabled?(movingWordId?'② 移動先の「ここへ移動」を押すと、その単語の直前に入ります。もう一度「移動を取消」で中止できます。':'① 移動したい単語の「移動」を押す → ② 移動先の「ここへ移動」を押す。≡ の長押しドラッグも利用できます。'):'順番変更は検索を解除すると使えます。';$('selectionCount').textContent=`${selectedIds.size}語選択中`;if(!arr.length){let p=document.createElement('p');p.className='muted';p.textContent='該当する単語がありません';root.append(p)}for(let [rowIndex,w] of arr.entries()){let el=document.createElement('div');el.className='word';if(movingWordId===w.id)el.classList.add('move-source');let cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedIds.has(w.id);cb.setAttribute('aria-label',w.en+' を選択');cb.onchange=()=>{if(cb.checked)selectedIds.add(w.id);else selectedIds.delete(w.id);$('selectionCount').textContent=`${selectedIds.size}語選択中`};let text=document.createElement('div');let b=document.createElement('strong');b.textContent=w.en;let small=document.createElement('small');small.textContent=(w.kind==='example'?'📌 例文重要語句 · ':'')+w.ja+(w.note?' · 補足あり':'')+' · '+({new:'未学習',known:'覚えた',missed:'復習対象'}[w.status]||'未学習')+` · 利用${w.viewCount||0}回 · 正解${w.correctCount||0}回`;text.append(b,small);let edit=document.createElement('button');edit.className='secondary';edit.textContent='編集';edit.onclick=()=>editor(w);let del=document.createElement('button');del.className='danger';del.textContent='削除';del.onclick=async()=>{if(!confirm(`${w.en} を削除しますか？`))return;words=words.filter(x=>x.id!==w.id);selectedIds.delete(w.id);await save();drawWords();rebuild()};let handle=document.createElement('button');handle.type='button';handle.className='drag-handle secondary';handle.textContent='≡';handle.title='長押しして並べ替え';handle.setAttribute('aria-label',w.en+' を長押しして並べ替え');handle.disabled=!reorderEnabled;el.dataset.wordId=w.id;installDragHandle(handle,el,w.id);let orderNumber=document.createElement('span');orderNumber.className='order-number';orderNumber.textContent=String(rowIndex+1);
+ let moveBtn=document.createElement('button');moveBtn.type='button';moveBtn.className='secondary move-word-button';
+ moveBtn.disabled=!reorderEnabled;
+ moveBtn.textContent=movingWordId===w.id?'移動を取消':movingWordId?'ここへ移動':'移動';
+ moveBtn.onclick=()=>movingWordId&&movingWordId!==w.id?placeWordBefore(w.id):beginWordMove(w.id);
+ el.append(orderNumber,cb,handle,text,moveBtn,edit,del);root.append(el)}}
 
 function editor(w){editing=w?.id||null;$('editEn').value=w?.en||'';$('editJa').value=w?.ja||'';$('editIpa').value=w?.ipa||getPronunciation(w||{en:''})||'';$('editNote').value=w?.note||'';$('editKind').value=w?.kind||'headword';$('editor').showModal()}
 // Conservative bilingual row extraction. Sentences and uncertain pairings are excluded.
@@ -275,7 +300,20 @@ function extractText(text){if(text.length>60000)return toast('一度に読み取
 const IPA_LOCAL={apple:'/ˈæp.əl/',negotiate:'/nɪˈɡoʊ.ʃi.eɪt/',affordable:'/əˈfɔːr.də.bəl/',revenue:'/ˈrev.ə.nuː/',invoice:'/ˈɪn.vɔɪs/',audit:'/ˈɔː.dɪt/',awareness:'/əˈwer.nəs/',municipal:'/mjuːˈnɪs.ɪ.pəl/',municipality:'/mjuːˌnɪs.ɪˈpæl.ə.ti/',customer:'/ˈkʌs.tə.mɚ/',employee:'/ɪmˈplɔɪ.iː/',purchase:'/ˈpɝː.tʃəs/',schedule:'/ˈskedʒ.uːl/',inventory:'/ˈɪn.vən.tɔːr.i/',reimbursement:'/ˌriː.ɪmˈbɝːs.mənt/',available:'/əˈveɪ.lə.bəl/',appointment:'/əˈpɔɪnt.mənt/',confirm:'/kənˈfɝːm/',delivery:'/dɪˈlɪv.ɚ.i/',receipt:'/rɪˈsiːt/'};
 function getPronunciation(w){return w.ipa||IPA_LOCAL[normalize(w.en)]||''}
 
-function renderCandidates(){let root=$('candidateList');root.replaceChildren();$('candidates').hidden=!candidates.length;if(!candidates.length){toast('単語を検出できませんでした');return}for(let [idx,w] of candidates.entries()){let row=document.createElement('div');row.className='candidate';let tag=document.createElement('small');tag.textContent=`候補 ${idx+1}・${w.source||'要確認'}・保存前に照合`;tag.className='muted candidate-source';row.append(tag);let cb=document.createElement('input');cb.type='checkbox';cb.checked=w.selected;cb.setAttribute('aria-label',w.en+' を登録');cb.onchange=()=>{w.selected=cb.checked;updateCandidateAudit()};let group=document.createElement('div');let verified=document.createElement('label');verified.className='muted';let vcb=document.createElement('input');vcb.type='checkbox';vcb.checked=!!w.verified;vcb.onchange=()=>{w.verified=vcb.checked;updateCandidateAudit()};verified.append(vcb,document.createTextNode('教材写真・原文と照合済み'));let en=document.createElement('input');en.type='text';en.value=w.en;en.setAttribute('aria-label','英単語');en.oninput=()=>w.en=en.value;let ja=document.createElement('input');ja.type='text';ja.value=w.ja;ja.placeholder='日本語訳を入力';ja.setAttribute('aria-label','日本語訳');ja.oninput=()=>w.ja=ja.value;let kind=document.createElement('select');kind.setAttribute('aria-label','カード種別');for(const [value,label] of [['headword','見出し単語'],['example','例文の重要語句']]){let opt=document.createElement('option');opt.value=value;opt.textContent=label;kind.append(opt)}kind.value=w.kind||'headword';kind.onchange=()=>w.kind=kind.value;let note=document.createElement('textarea');note.rows=2;note.placeholder='補足・追加の意味（任意）';note.value=w.note||'';note.setAttribute('aria-label','補足メモ');note.oninput=()=>w.note=note.value.slice(0,500);group.append(en,ja,kind,note,verified);row.append(cb,group);root.append(row)}updateCandidateAudit();toast(candidates.length+'語を抽出しました')}
+function moveCandidate(index,step){
+ const next=index+step;
+ if(next<0||next>=candidates.length)return;
+ [candidates[index],candidates[next]]=[candidates[next],candidates[index]];
+ renderCandidates();
+ const rows=$('candidateList').children;
+ rows[next]?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function renderCandidates(){let root=$('candidateList');root.replaceChildren();$('candidates').hidden=!candidates.length;if(!candidates.length){toast('単語を検出できませんでした');return}for(let [idx,w] of candidates.entries()){let row=document.createElement('div');row.className='candidate';let tag=document.createElement('small');tag.textContent=`候補 ${idx+1}・${w.source||'要確認'}・保存前に照合`;tag.className='muted candidate-source';row.append(tag);
+ let orderTools=document.createElement('div');orderTools.className='candidate-order';
+ let up=document.createElement('button');up.type='button';up.className='secondary';up.textContent='↑ 上へ';up.disabled=idx===0;up.onclick=()=>moveCandidate(idx,-1);
+ let down=document.createElement('button');down.type='button';down.className='secondary';down.textContent='↓ 下へ';down.disabled=idx===candidates.length-1;down.onclick=()=>moveCandidate(idx,1);
+ orderTools.append(up,down);row.append(orderTools);
+ let cb=document.createElement('input');cb.type='checkbox';cb.checked=w.selected;cb.setAttribute('aria-label',w.en+' を登録');cb.onchange=()=>{w.selected=cb.checked;updateCandidateAudit()};let group=document.createElement('div');let verified=document.createElement('label');verified.className='muted';let vcb=document.createElement('input');vcb.type='checkbox';vcb.checked=!!w.verified;vcb.onchange=()=>{w.verified=vcb.checked;updateCandidateAudit()};verified.append(vcb,document.createTextNode('教材写真・原文と照合済み'));let en=document.createElement('input');en.type='text';en.value=w.en;en.setAttribute('aria-label','英単語');en.oninput=()=>w.en=en.value;let ja=document.createElement('input');ja.type='text';ja.value=w.ja;ja.placeholder='日本語訳を入力';ja.setAttribute('aria-label','日本語訳');ja.oninput=()=>w.ja=ja.value;let kind=document.createElement('select');kind.setAttribute('aria-label','カード種別');for(const [value,label] of [['headword','見出し単語'],['example','例文の重要語句']]){let opt=document.createElement('option');opt.value=value;opt.textContent=label;kind.append(opt)}kind.value=w.kind||'headword';kind.onchange=()=>w.kind=kind.value;let note=document.createElement('textarea');note.rows=2;note.placeholder='補足・追加の意味（任意）';note.value=w.note||'';note.setAttribute('aria-label','補足メモ');note.oninput=()=>w.note=note.value.slice(0,500);group.append(en,ja,kind,note,verified);row.append(cb,group);root.append(row)}updateCandidateAudit();toast(candidates.length+'語を抽出しました')}
 function showUnverifiedCandidates(){for(const row of $('candidateList').children){const checkbox=row.querySelector('label.muted input[type=checkbox]');row.hidden=!!(checkbox&&checkbox.checked)}$('candidates').scrollIntoView({behavior:'smooth',block:'start'})}
 function showAllCandidates(){for(const row of $('candidateList').children)row.hidden=false}
 function updateCandidateAudit(){const selected=candidates.filter(w=>w.selected);const confirmed=selected.filter(w=>w.verified).length;const status=$('candidateAudit');if(status)status.textContent=`選択中 ${selected.length}件 ／ 照合済み ${confirmed}件 ／ 要確認 ${selected.length-confirmed}件`;}
