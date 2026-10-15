@@ -259,3 +259,7 @@ body.study-fullscreen #study #card #front .stress-accent{
 /* v77: Restore missing stylesheet and keep fitted text on a single line */
 #study #card #front,body.study-fullscreen #study #card #front{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;font-size:var(--fit-en,clamp(51px,13.5vw,78px))!important;max-width:100%;min-width:0;display:block}
 #study #card #back,body.study-fullscreen #study #card #back{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;font-size:var(--fit-ja,clamp(33px,9vw,48px))!important;max-width:100%;min-width:0;display:block}
+
+/* v78: keep version in brand and bottom shortcut at upper-right across tabs */
+.version-chip,body.study-fullscreen .version-chip{position:static!important;display:inline-block!important;top:auto!important;right:auto!important;margin-top:3px;font-size:12px!important;padding:2px 6px!important;opacity:1!important;box-shadow:none!important;background:#27445f!important;color:#fff!important}
+.header-go-bottom,body.study-fullscreen .header-go-bottom{position:fixed!important;top:calc(env(safe-area-inset-top) + 8px)!important;right:8px!important;z-index:101!important;padding:8px 9px!important;font-size:12px!important;max-width:110px!important}
