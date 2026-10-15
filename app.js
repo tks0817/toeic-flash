@@ -213,44 +213,70 @@ async function importClipboardText(){
   $('paste').focus();
  }
 }
-function loadScript(url){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=url;el.async=true;el.onload=()=>{if(window.Tesseract)resolve();else reject(Error('OCRスクリプトは読み込めましたがTesseractが見つかりません：'+url))};el.onerror=()=>reject(Error('OCRスクリプトを取得できません：'+url+'。GitHub Pagesの公開状態、ネット接続、広告ブロッカー、Safariのキャッシュを確認してください'));document.head.append(el)})}
-
-const OCR_CDN={
- script:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
- worker:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
- core:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0',
- lang:'https://tessdata.projectnaptha.com/4.0.0'
-};
+function loadScript(url){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=url;el.async=true;el.onload=()=>{if(window.Tesseract)resolve();else{el.remove();reject(Error('OCRスクリプトは読み込めましたがTesseractが見つかりません：'+url))}};el.onerror=()=>{el.remove();reject(Error('OCRスクリプトを取得できません：'+url))};document.head.append(el)})}
+const OCR_SOURCES=[
+ {name:'jsDelivr',script:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',worker:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',core:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0'},
+ {name:'unpkg',script:'https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js',worker:'https://unpkg.com/tesseract.js@5.1.1/dist/worker.min.js',core:'https://unpkg.com/tesseract.js-core@5.0.0'},
+ {name:'cdnjs',script:'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js',worker:'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/worker.min.js',core:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0'}
+];
+let activeOCRSource=null;
+let ocrPhase='待機中';
+function setOCRPhase(phase){ocrPhase=phase;$('ocrStatus').textContent='OCR準備：'+phase}
+async function loadOCRScript(){
+ const errors=[];
+ for(const source of OCR_SOURCES){
+  try{
+   setOCRPhase(`スクリプト取得 ${source.name}`);
+   await loadScript(source.script);
+   activeOCRSource=source;
+   return;
+  }catch(e){errors.push(source.name+': '+e.message)}
+ }
+ throw Error('OCRスクリプトを取得できません。通信制限・コンテンツブロッカー・GitHub Pagesの更新を確認してください。 '+errors.join(' / '));
+}
+async function createLocalOCRWorker(source){
+ return window.Tesseract.createWorker('jpn+eng',1,{
+  workerPath:source.worker,corePath:source.core,
+  langPath:'https://tessdata.projectnaptha.com/4.0.0',
+  workerBlobURL:true,gzip:true,cacheMethod:'write',
+  logger:m=>{if(m.status){ocrPhase=m.status;$('ocrStatus').textContent='日本語OCR：'+m.status+' '+Math.round((m.progress||0)*100)+'%'}}
+ });
+}
 async function getPhotoOCREngine(){
  if(typeof window.TextDetector==='function'){
   return {name:'ブラウザー内蔵OCR',recognize:async canvas=>(await (new window.TextDetector()).detect(canvas)).map(b=>b.rawValue||'').join('\n')};
  }
- if(!window.Tesseract){
-  $('ocrStatus').textContent='初回のみOCRプログラムを取得中…';
-  await loadScript(OCR_CDN.script);
- }
+ if(!window.Tesseract)await loadOCRScript();
  if(!ocrWorker){
-  $('ocrStatus').textContent='日本語・英語の認識データを取得中…（初回は大容量です）';
-  ocrWorker=await window.Tesseract.createWorker('jpn+eng',1,{
-   workerPath:OCR_CDN.worker,corePath:OCR_CDN.core,langPath:OCR_CDN.lang,
-   workerBlobURL:true,gzip:true,cacheMethod:'write',
-   logger:m=>{if(m.status)$('ocrStatus').textContent='日本語OCR：'+m.status+' '+Math.round((m.progress||0)*100)+'%'}
-  });
+  const sources=activeOCRSource?[activeOCRSource,...OCR_SOURCES.filter(s=>s!==activeOCRSource)]:OCR_SOURCES;
+  const errors=[];
+  for(const source of sources){
+   try{
+    setOCRPhase(`ワーカー・WASM・言語データ準備 ${source.name}（初回は大容量）`);
+    ocrWorker=await createLocalOCRWorker(source);
+    activeOCRSource=source;
+    break;
+   }catch(e){
+    errors.push(source.name+': '+(e?.message||String(e)));
+    ocrWorker=null;
+   }
+  }
+  if(!ocrWorker)throw Error('OCRワーカー／認識データの準備に失敗しました。 '+errors.join(' / '));
  }
  return {name:'日本語OCR（Tesseract.js／端末内処理）',recognize:async canvas=>(await ocrWorker.recognize(canvas)).data.text};
 }
 async function testJapaneseOCR(){
  const btn=$('ocrSelfTest'),status=$('ocrStatus');btn.disabled=true;
  try{
-  status.textContent='v32 OCR診断中：認識エンジンを読み込んでいます…';
+  status.textContent='v40 OCR診断中：認識エンジンを読み込んでいます…';
   const engine=await getPhotoOCREngine();
   const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=250;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,1200,250);
   ctx.fillStyle='#111';ctx.font='bold 80px sans-serif';ctx.fillText('apple りんご',35,150);
   let raw='';try{raw=await engine.recognize(canvas)}finally{canvas.width=canvas.height=0}
   const hasEnglish=/apple/i.test(raw),hasJapanese=/りんご|リンゴ|林檎/.test(raw);
-  status.textContent=`OCR診断（${engine.name}）：英語 ${hasEnglish?'検出':'未検出'}／日本語 ${hasJapanese?'検出':'未検出'}。認識文字「${raw.replace(/\s+/g,' ').slice(0,150)}」。${hasEnglish&&hasJapanese?'基本認識に成功しました。教材写真の精度は別途確認が必要です。':'日本語OCRの準備・設定を確認してください。'}`;
- }catch(e){status.textContent='v32 OCR診断失敗：'+e.message+'。外部OCR部品の取得に失敗した可能性があります。'}
+  status.textContent=`OCR診断（${engine.name}）：英語 ${hasEnglish?'検出':'未検出'}／日本語 ${hasJapanese?'検出':'未検出'}。認識文字「${raw.replace(/\s+/g,' ').slice(0,150)}」。${hasEnglish&&hasJapanese?'基本認識に成功しました。実際の教材での精度は別途確認してください。':'日本語OCRの準備・設定を確認してください。'}`;
+ }catch(e){status.textContent='v40 OCR診断失敗（段階：'+ocrPhase+'）：'+e.message+'。URLや表示内容を記録してください。'}
  finally{btn.disabled=false}
 }
 async function doOCR(){
@@ -400,7 +426,18 @@ function timePause(){timeTick();active=false;timeSave()}
 function initTimer(){timeLoad();timeResume();timeRender();setInterval(timeTick,1000);document.addEventListener('visibilitychange',()=>document.hidden?timePause():timeResume());window.addEventListener('pagehide',timePause);window.addEventListener('pageshow',timeResume)}
 
 function bind(){$('pdfRead').onclick=readPdf;document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));$('card').onclick=()=>{flipped=!flipped;drawCard()};$('prev').onclick=()=>move(-1);$('next').onclick=()=>move(1);$('shuffle').onclick=()=>rebuild(true);$('filter').onchange=()=>rebuild();$('know').onclick=()=>grade('known');$('miss').onclick=()=>grade('missed');$('speak').onclick=()=>{let w=words.find(w=>w.id===deck[pos]);if(!w||!('speechSynthesis'in window))return toast('音声を再生できません');speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(w.en);u.lang='en-US';u.rate=.82;speechSynthesis.speak(u)};
-$('addMarkedPair').onclick=addMarkedPair;$('pasteClipboard').onclick=async()=>{try{if(!navigator.clipboard?.readText)throw Error('Safariでクリップボードの直接読み取りに対応していません');const text=await navigator.clipboard.readText();if(!text.trim())throw Error('コピーされた文字がありません');if(text.length>50000)throw Error('文字数が多すぎます。写真ごとにコピーしてください');$('paste').value=text;extractText(text);$('clipboardStatus').textContent=`${candidates.length}語を抽出しました。日本語訳を確認してください。`;if(candidates.length)$('candidates').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){$('clipboardStatus').textContent='直接取り込みできませんでした。下の「テキストを貼り付けて登録」を開き、長押しで貼り付けてください。';}};$('splitSpread').onclick=splitSpread;$('splitEntries').onclick=splitEntries;$('extractRegions').onclick=extractRegions;$('splitPosition').oninput=()=>{$('splitValue').textContent=$('splitPosition').value+'%'};$('photo').onchange=()=>{if([...$('entryRegions').querySelectorAll('textarea[data-region]')].some(el=>el.value.trim())&&!confirm('領域別に入力した未保存テキストが消えます。写真を変更しますか？')){$('photo').value='';return}discardPreviewOnly();let file=$('photo').files[0];if(!file)return;previewUrl=URL.createObjectURL(file);$('preview').src=previewUrl;$('preview').hidden=false;$('spreadTools').hidden=false;$('ocr').disabled=false;$('ocrStatus').textContent='写真を選択しました。候補と照合後に「写真を破棄」を押してください'};$('discard').onclick=()=>{if([...$('entryRegions').querySelectorAll('textarea[data-region]')].some(el=>el.value.trim())&&!confirm('領域別の未保存テキストも消えます。写真を破棄しますか？'))return;discardPhoto();$('ocrStatus').textContent='写真を破棄しました'};$('ocr').onclick=doOCR;$('ocrSelfTest').onclick=testJapaneseOCR;$('clipboardImport').onclick=importClipboardText;$('fromText').onclick=()=>extractText($('paste').value);if($('resetTimer'))$('resetTimer').onclick=()=>{if(!confirm('学習時間の今回・累計をリセットしますか？ 単語や正誤記録は残ります。'))return;timePause();sessionMs=0;timeState.totalMs=0;timeState.sessions=0;timeSave();timeRender();timeResume();toast('学習時間をリセットしました')};$('selectVisible').onclick=()=>{for(const w of words.filter(w=>normalize(w.en).includes(normalize($('search').value))||w.ja.includes(normalize($('search').value))))selectedIds.add(w.id);drawWords()};$('clearSelection').onclick=()=>{selectedIds.clear();drawWords()};$('bulkDelete').onclick=async()=>{const ids=new Set([...selectedIds].filter(id=>words.some(w=>w.id===id)));if(!ids.size)return toast('削除する単語を選択してください');if(!confirm(`${ids.size}語を削除しますか？ この操作は元に戻せません。`))return;words=words.filter(w=>!ids.has(w.id));selectedIds.clear();await save();drawWords();rebuild();toast(`${ids.size}語を削除しました`)};$('showUnverified').onclick=showUnverifiedCandidates;$('showAllCandidates').onclick=showAllCandidates;$('allSelect').onclick=()=>{candidates.forEach(w=>w.selected=true);renderCandidates()};$('noneSelect').onclick=()=>{candidates.forEach(w=>w.selected=false);renderCandidates()};$('saveCandidates').onclick=async()=>{let unverified=candidates.filter(w=>w.selected&&!w.verified);if(unverified.length&&!confirm(`${unverified.length}件が原文と未照合です。確認せずに登録しますか？`))return;let selected=candidates.filter(w=>w.selected).map(w=>({en:normalize(w.en),ja:clean(w.ja),kind:w.kind||'headword',note:clean(w.note||'').slice(0,500)}));if(!selected.length)return toast('単語を選択してください');if(selected.some(w=>!w.en||!w.ja))return toast('日本語訳を入力してください');const invalid=selected.filter(w=>!/^[a-z][a-z' -]*$/.test(w.en));if(invalid.length)return toast('英語表記に問題があります。候補を修正してください');const previous=structuredClone(words);let n=mergeIncoming(selected.map(w=>({...w,id:uid(),status:'new'})));try{await save()}catch(e){words=previous;return}candidates=[];$('paste').value='';rebuild();tab('words');toast(n+'語を登録しました')};$('addManual').onclick=()=>editor();$('search').oninput=drawWords;
+$('addMarkedPair').onclick=addMarkedPair;$('pasteClipboard').onclick=async()=>{try{if(!navigator.clipboard?.readText)throw Error('Safariでクリップボードの直接読み取りに対応していません');const text=await navigator.clipboard.readText();if(!text.trim())throw Error('コピーされた文字がありません');if(text.length>50000)throw Error('文字数が多すぎます。写真ごとにコピーしてください');$('paste').value=text;extractText(text);$('clipboardStatus').textContent=`${candidates.length}語を抽出しました。日本語訳を確認してください。`;if(candidates.length)$('candidates').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){$('clipboardStatus').textContent='直接取り込みできませんでした。下の「テキストを貼り付けて登録」を開き、長押しで貼り付けてください。';}};$('splitSpread').onclick=splitSpread;$('splitEntries').onclick=splitEntries;$('extractRegions').onclick=extractRegions;$('splitPosition').oninput=()=>{$('splitValue').textContent=$('splitPosition').value+'%'};$('photo').onchange=()=>{if([...$('entryRegions').querySelectorAll('textarea[data-region]')].some(el=>el.value.trim())&&!confirm('領域別に入力した未保存テキストが消えます。写真を変更しますか？')){$('photo').value='';return}discardPreviewOnly();let file=$('photo').files[0];if(!file)return;previewUrl=URL.createObjectURL(file);$('preview').src=previewUrl;$('preview').hidden=false;$('spreadTools').hidden=false;$('ocr').disabled=false;$('ocrStatus').textContent='写真を選択しました。候補と照合後に「写真を破棄」を押してください'};$('discard').onclick=()=>{if([...$('entryRegions').querySelectorAll('textarea[data-region]')].some(el=>el.value.trim())&&!confirm('領域別の未保存テキストも消えます。写真を破棄しますか？'))return;discardPhoto();$('ocrStatus').textContent='写真を破棄しました'};$('ocr').onclick=doOCR;$('ocrSelfTest').onclick=testJapaneseOCR;$('clipboardImport').onclick=importClipboardText;$('fromText').onclick=()=>extractText($('paste').value);if($('resetTimer'))$('resetTimer').onclick=()=>{if(!confirm('学習時間の今回・累計をリセットしますか？ 単語や正誤記録は残ります。'))return;timePause();sessionMs=0;timeState.totalMs=0;timeState.sessions=0;timeSave();timeRender();timeResume();toast('学習時間をリセットしました')};async function resetReviewCounts(ids){
+ const targets=words.filter(w=>ids.has(w.id));
+ if(!targets.length)return toast('対象の単語がありません');
+ if(!confirm(`${targets.length}語の正解・不正解回数をすべて0に戻しますか？\nこの操作は元に戻せません。単語と学習時間は残ります。`))return;
+ const previous=structuredClone(words);
+ for(const w of targets){w.correctCount=0;w.wrongCount=0}
+ try{await save()}catch(e){words=previous;rebuild();drawWords();return}
+ rebuild();drawWords();toast(`${targets.length}語の正誤回数をリセットしました`);
+}
+$('resetAllCounts').onclick=()=>resetReviewCounts(new Set(words.map(w=>w.id)));
+$('resetSelectedCounts').onclick=()=>resetReviewCounts(new Set(selectedIds));
+$('selectVisible').onclick=()=>{for(const w of words.filter(w=>normalize(w.en).includes(normalize($('search').value))||w.ja.includes(normalize($('search').value))))selectedIds.add(w.id);drawWords()};$('clearSelection').onclick=()=>{selectedIds.clear();drawWords()};$('bulkDelete').onclick=async()=>{const ids=new Set([...selectedIds].filter(id=>words.some(w=>w.id===id)));if(!ids.size)return toast('削除する単語を選択してください');if(!confirm(`${ids.size}語を削除しますか？ この操作は元に戻せません。`))return;words=words.filter(w=>!ids.has(w.id));selectedIds.clear();await save();drawWords();rebuild();toast(`${ids.size}語を削除しました`)};$('showUnverified').onclick=showUnverifiedCandidates;$('showAllCandidates').onclick=showAllCandidates;$('allSelect').onclick=()=>{candidates.forEach(w=>w.selected=true);renderCandidates()};$('noneSelect').onclick=()=>{candidates.forEach(w=>w.selected=false);renderCandidates()};$('saveCandidates').onclick=async()=>{let unverified=candidates.filter(w=>w.selected&&!w.verified);if(unverified.length&&!confirm(`${unverified.length}件が原文と未照合です。確認せずに登録しますか？`))return;let selected=candidates.filter(w=>w.selected).map(w=>({en:normalize(w.en),ja:clean(w.ja),kind:w.kind||'headword',note:clean(w.note||'').slice(0,500)}));if(!selected.length)return toast('単語を選択してください');if(selected.some(w=>!w.en||!w.ja))return toast('日本語訳を入力してください');const invalid=selected.filter(w=>!/^[a-z][a-z' -]*$/.test(w.en));if(invalid.length)return toast('英語表記に問題があります。候補を修正してください');const previous=structuredClone(words);let n=mergeIncoming(selected.map(w=>({...w,id:uid(),status:'new'})));try{await save()}catch(e){words=previous;return}candidates=[];$('paste').value='';rebuild();tab('words');toast(n+'語を登録しました')};$('addManual').onclick=()=>editor();$('search').oninput=drawWords;
 $('editorForm').addEventListener('submit',async e=>{if(e.submitter?.value!=='save')return;e.preventDefault();let en=normalize($('editEn').value),ja=clean($('editJa').value),ipa=$('editIpa').value.trim().slice(0,80),note=clean($('editNote').value).slice(0,500),kind=$('editKind').value;if(!en||!ja)return;if(editing){let w=words.find(w=>w.id===editing);if(w)Object.assign(w,{en,ja,ipa,note,kind})}else if(words.some(w=>normalize(w.en)===en))return toast('同じ単語が登録済みです');else words.push({id:uid(),en,ja,ipa,note,kind,status:'new',correctCount:0,wrongCount:0});$('editor').close();await save();rebuild();drawWords();toast('保存しました')});
 $('exportEncrypted').onclick=exportEncrypted;$('importEncrypted').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{await importData(JSON.parse(await f.text()),'encrypted')}catch(err){toast('復元失敗: パスワードまたはファイルを確認してください')}finally{e.target.value=''}};$('importLegacy').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{await importData(JSON.parse(await f.text()),'legacy')}catch(err){toast('有効な旧バックアップではありません')}finally{e.target.value=''}};$('migrateAgain').onclick=async()=>{try{let r=await migrate();rebuild();toast(`旧版 ${r.found} 語を確認、${r.added} 語を追加`)}catch{toast('旧データの移行に失敗しました')}};$('deleteAll').onclick=async()=>{if(!confirm('新保存領域の全単語と学習履歴を削除します。暗号化バックアップを取りましたか？'))return;if(!confirm('本当に削除しますか？ 旧版の保存データは残ります。'))return;words=[];await save();rebuild();drawWords();toast('新保存領域を削除しました')}}
 function discardPreviewOnly(){clearSpread();if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}$('preview').removeAttribute('src');$('preview').hidden=true}
