@@ -120,9 +120,11 @@ function renderAccentWord(w){
   if(ch==="'"){
    // Place a visible accent ABOVE the next letter, without changing the word spelling.
    if(position<en.length){
-    const ruby=document.createElement('ruby');ruby.className='stress-ruby';
-    ruby.append(document.createTextNode(en[position]));
-    const rt=document.createElement('rt');rt.textContent='ˈ';ruby.append(rt);front.append(ruby);position++;
+    const letter=document.createElement('span');letter.className='stress-letter';
+    letter.textContent=en[position];
+    const accent=document.createElement('span');accent.className='stress-accent';
+    accent.textContent='ˈ';accent.setAttribute('aria-hidden','true');
+    letter.append(accent);front.append(letter);position++;
    }
   }else if(position<en.length){front.append(document.createTextNode(en[position]));position++}
  }

@@ -216,3 +216,37 @@ body.study-fullscreen #study{justify-content:stretch!important}
 #study #front ruby.stress-ruby{ruby-position:over;display:inline-ruby;white-space:nowrap}
 #study #front ruby.stress-ruby rt{font-size:.40em;line-height:1;font-weight:800;color:inherit;text-align:center}
 #study #front{padding-top:.2em}
+
+/* v73: position stress glyph without shifting the letter's baseline */
+#study #front .stress-letter{
+  display:inline-block;
+  position:relative;
+  vertical-align:baseline;
+  line-height:inherit;
+}
+#study #front .stress-accent{
+  position:absolute;
+  left:50%;
+  top:-.64em;
+  transform:translateX(-50%);
+  font-size:.44em;
+  line-height:1;
+  font-weight:800;
+  pointer-events:none;
+}
+#study #front{padding-top:.42em}
+
+/* v74: clear, high-contrast stress mark; keep stressed letter at full size and baseline */
+#study #card #front .stress-letter,
+body.study-fullscreen #study #card #front .stress-letter{
+  font-size:1em!important;line-height:inherit!important;vertical-align:baseline;
+  display:inline-block;position:relative;overflow:visible;
+}
+#study #card #front .stress-accent,
+body.study-fullscreen #study #card #front .stress-accent{
+  position:absolute;top:-.48em;left:50%;transform:translateX(-50%);
+  font-size:.70em!important;line-height:1!important;font-weight:900!important;
+  color:#ffdb33!important;text-shadow:0 1px 2px #272727,0 0 3px #272727;
+  white-space:nowrap;z-index:2;pointer-events:none;
+}
+#study #card #front{overflow:visible;padding-top:.60em}
