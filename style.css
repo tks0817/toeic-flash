@@ -20,3 +20,21 @@ nav button{min-width:0;padding:11px 1px;font-size:clamp(10px,2.6vw,12px);line-he
 #timer #timePanel{margin-top:10px}
 #timer #resetTimer{display:block;margin-top:12px}
 @media(max-width:360px){nav button{font-size:10px}}
+
+/* v41 controls */
+.study-settings{display:grid;gap:8px;padding:8px 0}.study-settings label{margin:0}.study-settings select{max-width:100%;width:100%;margin-top:5px}.study-settings #autoControls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.study-settings #autoControls small{grid-column:1/-1}.study-settings #autoControls input{margin-top:5px}.study-settings #autoControls button{white-space:nowrap}.daily-add{display:flex;gap:8px;align-items:center}.daily-add input{min-width:0}.daily-row{display:grid;grid-template-columns:minmax(0,1fr) 85px auto auto;gap:7px;align-items:center;border-bottom:1px solid #ccd8e4;padding:8px 0}.daily-row input{min-width:0}.daily-row button{padding:9px}.word-image[hidden],#autoControls[hidden],#miss[hidden],#know[hidden]{display:none!important}
+:root[data-theme="dark"]{color-scheme:dark;background:#0c1420;color:#e7edf5}
+:root[data-theme="dark"] body{background:#0c1420;color:#e7edf5}
+:root[data-theme="dark"] header{background:#060e19}
+:root[data-theme="dark"] .panel,:root[data-theme="dark"] .stats div{background:#172334;color:#e7edf5;box-shadow:none}
+:root[data-theme="dark"] .notice{background:#233449;color:#e7edf5}
+:root[data-theme="dark"] .muted,:root[data-theme="dark"] .word small,:root[data-theme="dark"] .stats span{color:#b7c9dc}
+:root[data-theme="dark"] nav button,:root[data-theme="dark"] .secondary{background:#30475e;color:#f0f5fb}
+:root[data-theme="dark"] nav .active,:root[data-theme="dark"] .primary{background:#176f9c;color:#fff}
+:root[data-theme="dark"] input,:root[data-theme="dark"] textarea,:root[data-theme="dark"] select,:root[data-theme="dark"] dialog{background:#101b29;color:#f3f6fb;border-color:#52667a}
+:root[data-theme="dark"] .upload{background:#233449;border-color:#527b9b;color:#f3f6fb}
+:root[data-theme="dark"] .danger{background:#603333;color:#ffe7e7}
+:root[data-theme="dark"] .word,:root[data-theme="dark"] .candidate{border-color:#415269}
+:root[data-theme="dark"] .stats b{color:#7fd8f2}
+
+#bugList{max-height:280px;overflow:auto;overflow-wrap:anywhere}.bug-entry{padding:.6rem;border-bottom:1px solid var(--border,#aaa);font-size:.85rem}#autoPronounce{width:auto;min-width:auto}

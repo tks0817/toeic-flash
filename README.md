@@ -1,4 +1,4 @@
-# TOEIC Flash v40 — OCR取得エラーの切り分けと認識改善の土台
+# TOEIC Flash v41 — OCR取得エラーの切り分けと認識改善の土台
 
 - Tesseract.js v5.1.1のスクリプトとワーカーにcdnjs配布元を追加。
 - CSPのscript-srcにWebAssembly実行用 `wasm-unsafe-eval` とcdnjsを追加。
