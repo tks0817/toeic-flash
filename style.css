@@ -174,3 +174,10 @@ body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 8px)!imp
 #wordList .word-edit-actions button{min-width:82px!important;margin:0!important}
 #wordList .drag-handle{display:none!important}
 .words-quick-import>button{margin-top:12px;min-height:48px}
+
+/* v66: consistent navigation position on the study and study-time screens */
+body.study-fullscreen main{padding-top:18px!important;padding-left:14px!important;padding-right:14px!important}
+body.study-fullscreen main>nav{margin:14px 0!important;gap:4px}
+body.study-fullscreen #study{min-height:0}
+.page-up{display:block;min-height:48px;max-width:220px;margin:24px 0 4px!important;text-align:center}
+#wordsQuickAdd{min-height:48px;margin-top:14px}

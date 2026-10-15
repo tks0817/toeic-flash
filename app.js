@@ -826,27 +826,12 @@ $('wordsPasteSubmit').onclick=()=>{
  catch(e){$('wordsPasteStatus').textContent=e.message}
 };
 
-// v65: select a file directly from the word-list quick actions.
-$('wordsFilePicker').addEventListener('change',()=>{
- const source=$('wordsFilePicker');
- const file=source.files?.[0];
- if(!file)return;
- const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
- const target=$(isPdf?'pdfFile':'photo');
- if(!isPdf&&!file.type.startsWith('image/')){
-  $('wordsPasteStatus').textContent='写真またはPDFファイルを選択してください。';
-  source.value='';return;
- }
- try{
-  const transfer=new DataTransfer();transfer.items.add(file);
-  target.files=transfer.files;
-  tab('scan');
-  target.dispatchEvent(new Event('change',{bubbles:true}));
-  $('wordsPasteStatus').textContent='ファイルを選択しました。写真・PDF登録画面で読み取りを進めてください。';
- }catch(e){
-  tab('scan');
-  $('wordsPasteStatus').textContent='ファイルの引き渡しに失敗しました。写真・PDF登録画面から選び直してください。';
-  toast('ファイルを引き渡せませんでした。登録画面から選択してください。');
- }
- source.value='';
+
+// v66: quick manual registration and safe scroll-to-top controls.
+$('wordsQuickAdd').addEventListener('click',()=>editor());
+document.querySelectorAll('[data-page-up]').forEach(button=>{
+ button.addEventListener('click',()=>{
+  window.scrollTo({top:0,behavior:'smooth'});
+  document.scrollingElement?.scrollTo({top:0,behavior:'smooth'});
+ });
 });
