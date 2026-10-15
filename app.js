@@ -886,6 +886,15 @@ $('addMarkedPair').onclick=addMarkedPair;$('pasteClipboard').onclick=async()=>{t
  rebuild();drawWords();toast(`${targets.length}語の正誤回数をリセットしました`);
 }
 $('resetAllCounts').onclick=()=>resetReviewCounts(new Set(words.map(w=>w.id)));
+$('resetAllViews').onclick=async()=>{
+ const count=words.length;
+ if(!count)return toast('単語がありません');
+ if(!confirm(`全${count}語の閲覧回数を0に戻しますか？\n単語・正誤回数・学習時間は残ります。この操作は元に戻せません。`))return;
+ const before=words.map(w=>w.viewCount);
+ for(const w of words)w.viewCount=0;
+ try{await save()}catch(e){words.forEach((w,i)=>w.viewCount=before[i]);toast('保存できませんでした。閲覧回数は変更していません');return}
+ drawWords();drawCard();toast(`全${count}語の閲覧回数を0にしました`);
+};
 $('resetSelectedCounts').onclick=()=>resetReviewCounts(new Set(selectedIds));
 $('selectVisible').onclick=()=>{for(const w of words.filter(w=>normalize(w.en).includes(normalize($('search').value))||w.ja.includes(normalize($('search').value))))selectedIds.add(w.id);drawWords()};$('clearSelection').onclick=()=>{selectedIds.clear();drawWords()};$('bulkDelete').onclick=async()=>{const ids=new Set([...selectedIds].filter(id=>words.some(w=>w.id===id)));if(!ids.size)return toast('削除する単語を選択してください');if(!confirm(`${ids.size}語を削除しますか？ この操作は元に戻せません。`))return;words=words.filter(w=>!ids.has(w.id));selectedIds.clear();await save();drawWords();rebuild();toast(`${ids.size}語を削除しました`)};$('showUnverified').onclick=showUnverifiedCandidates;$('showAllCandidates').onclick=showAllCandidates;$('allSelect').onclick=()=>{candidates.forEach(w=>w.selected=true);renderCandidates()};$('noneSelect').onclick=()=>{candidates.forEach(w=>w.selected=false);renderCandidates()};$('saveCandidates').onclick=async()=>{let unverified=candidates.filter(w=>w.selected&&!w.verified);if(unverified.length&&!confirm(`${unverified.length}件が原文と未照合です。確認せずに登録しますか？`))return;let selected=candidates.filter(w=>w.selected).map(w=>({en:normalize(w.en),ja:clean(w.ja),kind:w.kind||'headword',note:clean(w.note||'').slice(0,500)}));if(!selected.length)return toast('単語を選択してください');if(selected.some(w=>!w.en||!w.ja))return toast('日本語訳を入力してください');const invalid=selected.filter(w=>!/^[a-z][a-z' -]*$/.test(w.en));if(invalid.length)return toast('英語表記に問題があります。候補を修正してください');const previous=structuredClone(words);let n=mergeIncoming(selected.map(w=>({...w,id:uid(),status:'new'})));try{await save()}catch(e){words=previous;return}candidates=[];$('paste').value='';stopAuto();if('speechSynthesis'in window)speechSynthesis.cancel();rebuild(false,false);tab('words');toast(n+'語を登録しました')};$('addManual').onclick=()=>editor();$('search').oninput=drawWords;
 $('editorForm').addEventListener('submit',async e=>{if(e.submitter?.value!=='save')return;e.preventDefault();let en=normalize($('editEn').value),ja=clean($('editJa').value),ipa=$('editIpa').value.trim().slice(0,80),stress=$('editStress').value.trim().toLowerCase().replace(/[’‘]/g,"'").slice(0,110),note=clean($('editNote').value).slice(0,500),kind=$('editKind').value;if(!en||!ja)return;if(stress&&(!stress.includes("'")||stress.replace(/'/g,'')!==en)){toast("アクセント表記は英単語の強勢位置にアポストロフィを追加してください");return}if(editing){let w=words.find(w=>w.id===editing);if(w)Object.assign(w,{en,ja,ipa,stress,note,kind})}else if(words.some(w=>normalize(w.en)===en))return toast('同じ単語が登録済みです');else words.push({id:uid(),en,ja,ipa,stress,note,kind,status:'new',correctCount:0,wrongCount:0});$('editor').close();stopAuto();if('speechSynthesis'in window)speechSynthesis.cancel();await save();rebuild(false,false);drawWords();toast('保存しました');if(!$('words').hidden)scrollToWordListBottom()});
@@ -951,8 +960,14 @@ for(const [id,key] of [['highlightEnglish','toeicflash-highlight-en-v71'],['high
  input.addEventListener('change',()=>{localStorage.setItem(key,String(input.checked));drawCard()});
 }
 function scrollToWordListBottom(){
- const target=$('wordsQuickAdd')||$('words');
- const go=()=>{const y=target.getBoundingClientRect().bottom+window.scrollY-window.innerHeight+24;window.scrollTo({top:Math.max(0,y),behavior:'smooth'})};
+ // Show the bottom-left "ページの一番上へ" control fully.
+ const target=document.querySelector('#words [data-page-up="words"]');
+ if(!target)return;
+ const go=()=>{
+  const rect=target.getBoundingClientRect();
+  const y=Math.max(0,rect.bottom+window.scrollY-window.innerHeight+18);
+  window.scrollTo({top:y,behavior:'smooth'});
+ };
  requestAnimationFrame(()=>requestAnimationFrame(go));
 }
 $('headerGoBottom').hidden=false;
