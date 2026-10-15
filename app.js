@@ -167,6 +167,8 @@ function extractPairs(text){
  function add(en,ja,kind=section,note=''){
   en=normalize(en);ja=ja.replace(/^[：:・\-\s]+/,'').trim();
   if(!ja||ja.length>90||!hasJa.test(ja)||en.split(' ').length>3||seen.has(en)||/[.!?]$/.test(en))return false;
+  // OCR noise gate: reject implausibly short fragments and mixed-script junk.
+  if(en.replace(/[^a-z]/g,'').length<3||/(?:[|\\<>]|[A-Za-z]{3,})/.test(ja)||/[ぁ-んァ-ン一-龥]\s*[|＆&]\s*[A-Za-z]/.test(ja))return false;
   seen.add(en);out.push({en,ja,selected:true,source:kind==='example'?'例文の重要語句候補':'印刷語句候補',kind,note,needsReview:true});return true;
  }
  for(let i=0;i<lines.length;i++){
@@ -214,7 +216,7 @@ function extractText(text){if(text.length>60000)return toast('一度に読み取
 const IPA_LOCAL={apple:'/ˈæp.əl/',negotiate:'/nɪˈɡoʊ.ʃi.eɪt/',affordable:'/əˈfɔːr.də.bəl/',revenue:'/ˈrev.ə.nuː/',invoice:'/ˈɪn.vɔɪs/',audit:'/ˈɔː.dɪt/',awareness:'/əˈwer.nəs/',municipal:'/mjuːˈnɪs.ɪ.pəl/',municipality:'/mjuːˌnɪs.ɪˈpæl.ə.ti/',customer:'/ˈkʌs.tə.mɚ/',employee:'/ɪmˈplɔɪ.iː/',purchase:'/ˈpɝː.tʃəs/',schedule:'/ˈskedʒ.uːl/',inventory:'/ˈɪn.vən.tɔːr.i/',reimbursement:'/ˌriː.ɪmˈbɝːs.mənt/',available:'/əˈveɪ.lə.bəl/',appointment:'/əˈpɔɪnt.mənt/',confirm:'/kənˈfɝːm/',delivery:'/dɪˈlɪv.ɚ.i/',receipt:'/rɪˈsiːt/'};
 function getPronunciation(w){return w.ipa||IPA_LOCAL[normalize(w.en)]||''}
 
-function renderCandidates(){let root=$('candidateList');root.replaceChildren();$('candidates').hidden=!candidates.length;if(!candidates.length){toast('単語を検出できませんでした');return}for(let [idx,w] of candidates.entries()){let row=document.createElement('div');row.className='candidate';let tag=document.createElement('small');tag.textContent=`候補 ${idx+1}・${w.source||'要確認'}・保存前に照合`;tag.className='muted';row.append(tag);let cb=document.createElement('input');cb.type='checkbox';cb.checked=w.selected;cb.setAttribute('aria-label',w.en+' を登録');cb.onchange=()=>{w.selected=cb.checked;updateCandidateAudit()};let group=document.createElement('div');let verified=document.createElement('label');verified.className='muted';let vcb=document.createElement('input');vcb.type='checkbox';vcb.checked=!!w.verified;vcb.onchange=()=>{w.verified=vcb.checked;updateCandidateAudit()};verified.append(vcb,document.createTextNode('教材写真・原文と照合済み'));let en=document.createElement('input');en.type='text';en.value=w.en;en.setAttribute('aria-label','英単語');en.oninput=()=>w.en=en.value;let ja=document.createElement('input');ja.type='text';ja.value=w.ja;ja.placeholder='日本語訳を入力';ja.setAttribute('aria-label','日本語訳');ja.oninput=()=>w.ja=ja.value;let kind=document.createElement('select');kind.setAttribute('aria-label','カード種別');for(const [value,label] of [['headword','見出し単語'],['example','例文の重要語句']]){let opt=document.createElement('option');opt.value=value;opt.textContent=label;kind.append(opt)}kind.value=w.kind||'headword';kind.onchange=()=>w.kind=kind.value;let note=document.createElement('textarea');note.rows=2;note.placeholder='補足・追加の意味（任意）';note.value=w.note||'';note.setAttribute('aria-label','補足メモ');note.oninput=()=>w.note=note.value.slice(0,500);group.append(en,ja,kind,note,verified);row.append(cb,group);root.append(row)}updateCandidateAudit();toast(candidates.length+'語を抽出しました')}
+function renderCandidates(){let root=$('candidateList');root.replaceChildren();$('candidates').hidden=!candidates.length;if(!candidates.length){toast('単語を検出できませんでした');return}for(let [idx,w] of candidates.entries()){let row=document.createElement('div');row.className='candidate';let tag=document.createElement('small');tag.textContent=`候補 ${idx+1}・${w.source||'要確認'}・保存前に照合`;tag.className='muted candidate-source';row.append(tag);let cb=document.createElement('input');cb.type='checkbox';cb.checked=w.selected;cb.setAttribute('aria-label',w.en+' を登録');cb.onchange=()=>{w.selected=cb.checked;updateCandidateAudit()};let group=document.createElement('div');let verified=document.createElement('label');verified.className='muted';let vcb=document.createElement('input');vcb.type='checkbox';vcb.checked=!!w.verified;vcb.onchange=()=>{w.verified=vcb.checked;updateCandidateAudit()};verified.append(vcb,document.createTextNode('教材写真・原文と照合済み'));let en=document.createElement('input');en.type='text';en.value=w.en;en.setAttribute('aria-label','英単語');en.oninput=()=>w.en=en.value;let ja=document.createElement('input');ja.type='text';ja.value=w.ja;ja.placeholder='日本語訳を入力';ja.setAttribute('aria-label','日本語訳');ja.oninput=()=>w.ja=ja.value;let kind=document.createElement('select');kind.setAttribute('aria-label','カード種別');for(const [value,label] of [['headword','見出し単語'],['example','例文の重要語句']]){let opt=document.createElement('option');opt.value=value;opt.textContent=label;kind.append(opt)}kind.value=w.kind||'headword';kind.onchange=()=>w.kind=kind.value;let note=document.createElement('textarea');note.rows=2;note.placeholder='補足・追加の意味（任意）';note.value=w.note||'';note.setAttribute('aria-label','補足メモ');note.oninput=()=>w.note=note.value.slice(0,500);group.append(en,ja,kind,note,verified);row.append(cb,group);root.append(row)}updateCandidateAudit();toast(candidates.length+'語を抽出しました')}
 function showUnverifiedCandidates(){for(const row of $('candidateList').children){const checkbox=row.querySelector('label.muted input[type=checkbox]');row.hidden=!!(checkbox&&checkbox.checked)}$('candidates').scrollIntoView({behavior:'smooth',block:'start'})}
 function showAllCandidates(){for(const row of $('candidateList').children)row.hidden=false}
 function updateCandidateAudit(){const selected=candidates.filter(w=>w.selected);const confirmed=selected.filter(w=>w.verified).length;const status=$('candidateAudit');if(status)status.textContent=`選択中 ${selected.length}件 ／ 照合済み ${confirmed}件 ／ 要確認 ${selected.length-confirmed}件`;}
@@ -311,7 +313,7 @@ function extractRegions(){
   const fresh=extractPairs(text);
   for(const item of fresh){
    item.source=`写真領域 ${field.dataset.region}・文字貼り付け`;
-   item.needsReview=true;item.verified=false;
+   item.needsReview=true;item.verified=false;item.selected=false;
    const result=mergeCandidateProposal(item);
    if(result==='added')total++;
    if(result==='alternative')alternativeTotal++;
@@ -409,6 +411,84 @@ async function testJapaneseOCR(){
  }catch(e){status.textContent='v40 OCR診断失敗（段階：'+ocrPhase+'）：'+e.message+'。URLや表示内容を記録してください。'}
  finally{btn.disabled=false}
 }
+// v54: textbook-aware OCR. All pixels and recognized text remain on this device.
+function colorMatch(r,g,b,kind){
+ const max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min;
+ if(kind==='blue')return b>r*1.08&&b>g*.98&&b>75&&delta>20&&r<195;
+ return r>g*1.15&&g>b*1.05&&r>115&&delta>28;
+}
+function inkRows(canvas,kind){
+ const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
+ const d=ctx.getImageData(0,0,w,h).data,rows=new Array(h).fill(0);
+ for(let y=0;y<h;y+=2){let n=0;for(let x=0;x<w;x+=2){const i=(y*w+x)*4;if(colorMatch(d[i],d[i+1],d[i+2],kind))n++}rows[y]=rows[Math.max(0,y-1)]=n}
+ return rows;
+}
+function clusters(rows,threshold,minGap=13){
+ let groups=[],open=-1,last=-1;
+ for(let y=0;y<rows.length;y++){if(rows[y]>=threshold){if(open<0)open=y;last=y}else if(open>=0&&y-last>minGap){groups.push({top:open,bottom:last});open=-1}}
+ if(open>=0)groups.push({top:open,bottom:last});
+ return groups.filter(g=>g.bottom-g.top>=7);
+}
+function makeCanvas(img,x,y,w,h,scale=2){
+ const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));
+ c.getContext('2d').drawImage(img,x,y,w,h,0,0,c.width,c.height);return c;
+}
+function isolateColor(canvas,kind){
+ const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;
+ const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0);
+ const im=ctx.getImageData(0,0,c.width,c.height),d=im.data;
+ for(let i=0;i<d.length;i+=4){if(colorMatch(d[i],d[i+1],d[i+2],kind)){d[i]=d[i+1]=d[i+2]=0}else{d[i]=d[i+1]=d[i+2]=255}}
+ ctx.putImageData(im,0,0);return c;
+}
+function cleanHeadword(raw){
+ const parts=raw.replace(/[|\\]/g,' ').split(/\s+/).map(v=>v.replace(/[^A-Za-z'-]/g,'').toLowerCase()).filter(v=>/^[a-z][a-z'-]{2,30}$/.test(v));
+ return parts.find(v=>v.length>=4)||parts[0]||'';
+}
+function cleanTranslation(raw){
+ return raw.replace(/[\r\n]+/g,' ').replace(/\[[^\]]*\]/g,'').replace(/^[^ぁ-んァ-ン一-龥]+/,'').replace(/\s+/g,' ').trim().slice(0,70);
+}
+async function doLayoutOCR(image,engine,status){
+ const split=Math.floor(image.width*Number($('splitPosition').value)/100);
+ const diagnostics=[];let added=0,alternatives=0;
+ for(let page=0;page<2;page++){
+  const x0=page?split:0,pw=page?image.width-split:split;
+  // Locate the blue printed headings, not arbitrary fifths of the whole photograph.
+  const scan=makeCanvas(image,x0,0,pw,image.height,Math.min(1,650/pw));
+  const rows=inkRows(scan,'blue');
+  const minInk=Math.max(4,Math.floor(scan.width*.014));
+  let groups=clusters(rows,minInk,12).filter(g=>g.top>scan.height*.09&&g.top<scan.height*.88);
+  scan.width=scan.height=0;
+  // Ignore tiny blue marks; merge adjacent fragments of one title.
+  groups=groups.filter(g=>g.bottom-g.top>=8).sort((a,b)=>a.top-b.top);
+  // Page decoration may be blue. Limit to five strongest separated heading regions.
+  const selected=[];
+  for(const g of groups){if(selected.length&&g.top-selected[selected.length-1].bottom<9){const prev=selected[selected.length-1];prev.bottom=Math.max(prev.bottom,g.bottom)}else selected.push({...g})}
+  // Use all groups but avoid merging heading words across lines.
+  const ratio=1/Math.min(1,650/pw);
+  groups=selected.filter(g=>g.top*ratio>image.height*.12&&g.top*ratio<image.height*.78).slice(0,7);
+  if(groups.length!==5){diagnostics.push(`${page?'右':'左'}ページ：見出し位置${groups.length}件（想定5件）。領域の確認が必要`)}
+  for(let i=0;i<Math.min(5,groups.length);i++){
+   const g=groups[i],cy=g.top*ratio, next=groups[i+1]?.top*ratio||cy+image.height*.13;
+   const headingH=Math.max(28,(g.bottom-g.top+17)*ratio);
+   const hx=x0+pw*.06,hw=pw*.78;
+   const head=makeCanvas(image,hx,Math.max(0,cy-7*ratio),hw,Math.min(headingH,image.height-cy),Math.min(2.4,1400/hw));
+   const blue=isolateColor(head,'blue');head.width=head.height=0;
+   let en='';try{en=cleanHeadword(await engine.recognize(blue))}catch(e){diagnostics.push(`見出し${page*5+i+1}: ${e.message}`)}finally{blue.width=blue.height=0}
+   const jaY=Math.max(0,cy-8*ratio),jaH=Math.min(Math.max(35,headingH*.95),Math.max(35,next-cy-5),image.height-jaY);
+   const translation=makeCanvas(image,x0+pw*.29,jaY,pw*.67,jaH,Math.min(2.3,1300/(pw*.67)));
+   const orange=isolateColor(translation,'orange');translation.width=translation.height=0;
+   let ja='';try{ja=cleanTranslation(await engine.recognize(orange))}catch(e){diagnostics.push(`日本語${page*5+i+1}: ${e.message}`)}finally{orange.width=orange.height=0}
+   if(!en){diagnostics.push(`${page?'右':'左'}${i+1}: 英語の読み取り失敗`);continue}
+   const validJa=/[ぁ-んァ-ン一-龥]/.test(ja)&&!/[a-zA-Z]{3}/.test(ja);
+   const item={en,ja:validJa?ja:'',selected:false,verified:false,needsReview:true,kind:'headword',note:'',source:`v54 色分離・${page?'右':'左'}ページ${i+1}番目（${validJa?'英日要照合':'日本語要修正'}）`};
+   const result=mergeCandidateProposal(item);if(result==='added')added++;if(result==='alternative')alternatives++;
+   if(!validJa)diagnostics.push(`${en}: 日本語訳の認識に失敗／手動確認`);
+  }
+ }
+ if(candidates.length)renderCandidates();
+ status.textContent=`教材レイアウトOCR：新規${added}件、別訳${alternatives}件。${diagnostics.length?'要確認：'+diagnostics.join(' / '):'全件、原文との照合が必要です。'} 誤認識の可能性があるため未選択です。`;
+ if(!added)toast('見出し語が検出できませんでした。写真の傾きや明るさを調整してください');
+}
 async function doOCR(){
  const file=$('photo').files[0];
  if(!file)return toast('先に教材写真を選択してください');
@@ -421,6 +501,7 @@ async function doOCR(){
    const split=Math.floor(image.width*Number($('splitPosition').value)/100);
    let added=0,alternatives=0,recognized=0;
    const mode=$('ocrLayout').value;
+   if(mode==='layout'){await doLayoutOCR(image,engine,status);return}
    const count=mode==='pages'?2:10;
    const failed=[];
    for(let region=0;region<count;region++){
@@ -449,7 +530,7 @@ async function doOCR(){
     }
     for(const item of extractPairs(raw)){
      item.source=`画像OCR・${mode==='pages'?(page?'右ページ':'左ページ'):'領域'+(region+1)}（要照合）`;
-     item.needsReview=true;item.verified=false;
+     item.needsReview=true;item.verified=false;item.selected=false;
      const result=mergeCandidateProposal(item);
      if(result==='added')added++;
      if(result==='alternative')alternatives++;
