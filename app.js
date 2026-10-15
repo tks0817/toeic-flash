@@ -775,7 +775,33 @@ function timePause(){timeTick();active=false;timeSave()}
 function initTimer(){timeLoad();timeResume();timeRender();setInterval(timeTick,1000);document.addEventListener('visibilitychange',()=>document.hidden?timePause():timeResume());window.addEventListener('pagehide',timePause);window.addEventListener('pageshow',timeResume)}
 
 function applyTheme(mode){const v=mode==='dark'?'dark':'light';document.documentElement.dataset.theme=v;try{localStorage.setItem('toeicflash-theme',v)}catch{}}
-async function checkForUpdate(){const btn=$('checkUpdate');btn.disabled=true;try{if(!navigator.onLine)throw Error('オフラインです');if('serviceWorker'in navigator){const reg=await navigator.serviceWorker.getRegistration('./');if(reg)await reg.update()}const res=await fetch('./sw.js?version-check='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('更新確認に失敗しました');const text=await res.text();const m=text.match(/toeicflash-private-v(\d+)/);if(!m)throw Error('配信中のバージョンを判定できません');const server=Number(m[1]);const local=Number(document.querySelector('#headerVersion')?.textContent?.match(/v(\d+)/)?.[1]||51);if(server>local){if(confirm(`v${server}が公開されています。画面を再読み込みしますか？ 保存前の入力は失われます。`))location.reload()}else toast('公開中のバージョンはv'+server+'です。最新版です')}catch(e){toast('更新確認できません：'+e.message)}finally{btn.disabled=false}}
+async function checkForUpdate(){
+ const btn=$('checkUpdate');btn.disabled=true;
+ try{
+  if(!navigator.onLine)throw Error('オフラインです');
+  const res=await fetch('./sw.js?version-check='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw Error('更新確認に失敗しました');
+  const source=await res.text();
+  const match=source.match(/toeicflash-private-v(\d+)/);
+  if(!match)throw Error('配信中のバージョンを判定できません');
+  const server=Number(match[1]);
+  const local=Number(document.querySelector('#headerVersion')?.textContent?.match(/v(\d+)/)?.[1]||0);
+  if(server<=local){toast('公開中のバージョンはv'+server+'です。最新版です');return}
+  if(!confirm(`v${server}が公開されています。更新しますか？ 未保存の入力は失われます。登録済み単語や学習記録は保持します。`))return;
+  toast('アプリの表示用キャッシュを更新しています…');
+  if('serviceWorker'in navigator){
+   const reg=await navigator.serviceWorker.getRegistration('./');
+   if(reg)await reg.update();
+  }
+  // Delete only versioned app shell caches; IndexedDB and localStorage stay intact.
+  if('caches'in window){
+   const keys=await caches.keys();
+   await Promise.all(keys.filter(key=>key.startsWith('toeicflash-')).map(key=>caches.delete(key)));
+  }
+  location.replace('./?app-update='+server+'-'+Date.now());
+ }catch(e){toast('更新確認できません：'+e.message);reportBug('更新確認',e)}
+ finally{btn.disabled=false}
+}
 function bind(){installPullRefresh();$('goalMinutes').value=String(getGoalMinutes()||15);$('goalSave').onclick=()=>{const n=Number($('goalMinutes').value);if(!Number.isInteger(n)||n<1||n>1440)return toast('目標は1〜1440分で設定してください');localStorage.setItem(GOAL_KEY,String(n));$('goalAchievement').hidden=true;showGoal();checkGoalReached();toast('今日の目標を保存しました')};$('goalNotify').onclick=async()=>{if(!('Notification'in window))return toast('この環境では通知に対応していません');try{const state=await Notification.requestPermission();toast(state==='granted'?'通知を許可しました':'通知が許可されていません')}catch(e){reportBug('通知許可',e);toast('通知の許可を取得できませんでした')}};showGoal();$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoTimer===null?startAuto():stopAuto();$('openFlashSettings').onclick=()=>tab('privacy');$('autoSeconds').onchange=()=>{if(autoTimer!==null)startAuto()};$('dailyDate').value=localDay();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;if($('autoRepeats'))$('autoRepeats').value=localStorage.getItem('toeicflash-auto-repeats')||'1';
 if($('autoRepeats'))$('autoRepeats').onchange=()=>{localStorage.setItem('toeicflash-auto-repeats',$('autoRepeats').value);autoRepeatDone=0};
 $('autoJapanese').checked=localStorage.getItem('toeicflash-auto-japanese')==='true';
@@ -842,3 +868,13 @@ $('cancelEditor').addEventListener('click',()=>{
  $('editor').close('cancel');
 });
 $('editor').addEventListener('cancel',()=>{editing=null});
+
+// v68: scroll to bottom of word list and prevent iOS keyboard focus zoom persistence.
+$('wordsGoBottom').addEventListener('click',()=>{
+ const section=$('words');
+ section.scrollIntoView({block:'end',behavior:'smooth'});
+});
+$('editor').addEventListener('close',()=>{
+ const focused=document.activeElement;
+ if(focused && $('editor').contains(focused))focused.blur();
+});
