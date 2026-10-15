@@ -152,3 +152,10 @@ body.study-fullscreen #study #card{flex:1 1 auto;min-height:140px;max-height:non
 .candidate-order{display:flex;gap:8px;margin:6px 0}
 .candidate-order button{min-height:42px}
 @media(max-width:600px){.word{flex-wrap:wrap}.word>div:not(.candidate-order){min-width:45%;flex:1}.move-word-button{min-height:44px}}
+
+/* v62: Match study-tab app branding to the full-size header on the Study Time tab. */
+body.study-fullscreen header{padding:18px max(16px,env(safe-area-inset-left))!important;min-height:0;gap:8px}
+body.study-fullscreen header .brand{gap:10px}
+body.study-fullscreen header .logo{padding:12px!important;font-size:inherit!important;border-radius:12px!important}
+body.study-fullscreen header .brand strong{font-size:21px!important}
+body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 8px)!important;font-size:12px!important;padding:3px 7px!important;opacity:1!important}
