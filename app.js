@@ -70,7 +70,24 @@ function speakCurrent(){
  u.onerror=e=>{if(e.error!=='canceled'&&e.error!=='interrupted')reportBug('読み上げ',e.error||'音声再生失敗')};
  speechSynthesis.speak(u)}catch(e){reportBug('読み上げ',e);toast('音声再生に失敗しました')}
 }
-function speakJapanese(){const w=words.find(w=>w.id===deck[pos]);if(!w||!w.ja||!('speechSynthesis'in window))return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(w.ja);u.lang='ja-JP';u.rate=.9;u.onerror=e=>{if(!['canceled','interrupted'].includes(e.error))reportBug('日本語読み上げ',e.error||'音声再生失敗')};speechSynthesis.speak(u)}catch(e){reportBug('日本語読み上げ',e)}}
+function speakJapanese(){
+ const w=words.find(w=>w.id===deck[pos]);
+ if(!w||!w.ja||!('speechSynthesis'in window))return;
+ try{
+  speechSynthesis.cancel();
+  // Speak only the translation; avoid unnatural pauses from notes and separators.
+  const text=String(w.ja).replace(/\\s*（[^）]{1,35}）/g,'').replace(/[／/|｜]/g,'、').replace(/\\s+/g,' ').trim();
+  if(!text)return;
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='ja-JP';u.rate=1.02;u.pitch=1;
+  const voices=speechSynthesis.getVoices();
+  const japanese=voices.filter(v=>/^ja(?:-|_)/i.test(v.lang));
+  const preferred=japanese.find(v=>/Kyoko|Otoya|Siri|Hattori|Nanami|Haruka/i.test(v.name))||japanese.find(v=>v.localService)||japanese[0];
+  if(preferred)u.voice=preferred;
+  u.onerror=e=>{if(!['canceled','interrupted'].includes(e.error))reportBug('日本語読み上げ',e.error||'音声再生失敗')};
+  speechSynthesis.speak(u);
+ }catch(e){reportBug('日本語読み上げ',e)}
+}
 function maybeSpeakJapanese(){if($('autoJapanese')?.checked&&deck.length)speakJapanese()}
 function maybeAutoSpeak(){
  if(!$('autoPronounce')?.checked||!deck.length)return;
@@ -93,7 +110,7 @@ function recordView(){const w=words.find(w=>w.id===deck[pos]);if(!w)return;if(la
 function drawCard(){let w=words.find(w=>w.id===deck[pos]);const test=isTestMode();$('front').textContent=w?.en||'単語がありません';$('pronunciation').textContent=w?(getPronunciation(w)||'発音記号：未登録（音声で確認）'):'';$('answerStats').textContent=w?(test?`正解 ${w.correctCount||0}回`:`カード閲覧 ${w.viewCount||0}回`):'';$('back').textContent=w&&flipped?(w.ja+(w.note?'\n補足：'+w.note:'')):'';$('wordImage').hidden=!flipped; if(flipped)drawMnemonic(w);else $('wordImage').replaceChildren();$('progress').textContent=deck.length?`${pos+1} / ${deck.length} 枚`:'この条件のカードはありません';['card','speak','prev','next'].forEach(id=>$(id).disabled=!w);['miss','know'].forEach(id=>{$(id).disabled=!w;$(id).hidden=!test});$('autoControls').hidden=test;stats()}
 function isTestMode(){return $('studyMode').value==='test'}
 let autoRepeatDone=0;
-function stopAuto(){if(autoTimer!==null){clearInterval(autoTimer);autoTimer=null}const b=$('autoToggle');if(b)b.textContent='▶ 自動めくり開始'}
+function stopAuto(){if(autoTimer!==null){clearInterval(autoTimer);autoTimer=null}const b=$('autoToggle');if(b)b.textContent='▶ 自動'}
 function autoStep(){if(!deck.length||isTestMode()||$('study').hidden){stopAuto();return}
  if(!flipped){flipped=true;drawCard();maybeSpeakJapanese();return}
  autoRepeatDone++;
@@ -101,7 +118,7 @@ function autoStep(){if(!deck.length||isTestMode()||$('study').hidden){stopAuto()
  if(autoRepeatDone<limit){flipped=false;drawCard();maybeAutoSpeak()}
  else{autoRepeatDone=0;move(1)}
 }
-function startAuto(){stopAuto();autoRepeatDone=0;if(isTestMode())return;const sec=Number($('autoSeconds').value);if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');$('autoSeconds').value=String(sec);autoTimer=setInterval(autoStep,sec*1000);maybeAutoSpeak();$('autoToggle').textContent='■ 自動めくり停止';toast(`${sec}秒ごとに表・裏を切り替え、${$('autoRepeats')?.value||1}回繰り返します`)}
+function startAuto(){stopAuto();autoRepeatDone=0;if(isTestMode())return;const sec=Number($('autoSeconds').value);if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');$('autoSeconds').value=String(sec);autoTimer=setInterval(autoStep,sec*1000);maybeAutoSpeak();$('autoToggle').textContent='■ 停止';toast(`${sec}秒ごとに表・裏を切り替え、${$('autoRepeats')?.value||1}回繰り返します`)}
 // v47: horizontal swipe on the flashcard only. Vertical scrolling stays native.
 // A swipe never marks a test answer; it only navigates between cards.
 let cardSwipeStart=null, suppressCardClick=false;
@@ -130,6 +147,7 @@ async function grade(status){let w=words.find(w=>w.id===deck[pos]);if(!w)return;
 function tab(id){
  const ids=['study','timer','scan','words','privacy'];
  if(!ids.includes(id))id='study';
+ document.body.classList.toggle('study-fullscreen',id==='study');
  stopAuto();
  for(const t of ids){const el=$(t);if(!el)continue;el.hidden=t!==id;el.style.setProperty('display',t===id?'block':'none','important');}
  document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id);b.setAttribute('aria-selected',String(b.dataset.tab===id))});

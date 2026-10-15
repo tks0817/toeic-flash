@@ -71,3 +71,31 @@ main > section.panel[hidden]{display:none!important}
 .preferences-settings #autoControls input,.preferences-settings #autoControls select{width:100%;min-width:0;max-width:100%;font-size:16px}
 .preferences-settings #autoControls small{grid-column:1/-1}
 @media(max-width:360px){.study-start-controls{grid-template-columns:1fr}.preferences-settings #autoControls{grid-template-columns:1fr}}
+
+/* v52: compact study mode on iPhone. Other tabs retain normal scrolling. */
+body.study-fullscreen{height:100dvh;overflow:hidden}
+body.study-fullscreen header{display:none}
+body.study-fullscreen main{height:100dvh;max-height:100dvh;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 7px) 10px calc(env(safe-area-inset-bottom) + 6px);overflow:hidden}
+body.study-fullscreen main>nav{flex:0 0 auto;margin:0 0 6px;gap:4px}
+body.study-fullscreen main>nav button{padding:8px 1px;min-height:42px}
+body.study-fullscreen #study{flex:1 1 auto;min-height:0;display:flex!important;flex-direction:column;gap:5px;margin:0;padding:10px;border-radius:14px;overflow:hidden}
+body.study-fullscreen #study .head{flex:0 0 auto;gap:8px}
+body.study-fullscreen #study h1{font-size:16px;margin:0}
+body.study-fullscreen #study #filter{font-size:16px;min-height:38px;padding:5px;max-width:65%}
+body.study-fullscreen #study .study-start-controls{flex:0 0 auto;margin:0;gap:7px}
+body.study-fullscreen #study .study-start-controls button{font-size:14px;padding:7px;min-height:38px}
+body.study-fullscreen #study #progress{margin:0;font-size:12px;line-height:1.3}
+body.study-fullscreen #study .swipe-help{margin:0;font-size:12px;line-height:1.3}
+body.study-fullscreen #study #card{flex:1 1 auto;min-height:0;max-height:none;margin:0;padding:12px 8px;gap:clamp(7px,2dvh,18px);overflow-y:auto;overscroll-behavior:contain}
+body.study-fullscreen #study #card strong{font-size:clamp(24px,7vw,37px)}
+body.study-fullscreen #study #card span{font-size:clamp(13px,3.8vw,19px)}
+body.study-fullscreen #study #card #answerStats{font-size:12px!important}
+body.study-fullscreen #study #speak{flex:0 0 auto;margin:0;padding:8px;min-height:38px}
+body.study-fullscreen #study .actions{flex:0 0 auto;margin:0;gap:6px}
+body.study-fullscreen #study .actions button{padding:8px 3px;min-height:38px;font-size:clamp(12px,3.4vw,15px)}
+body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 45px);font-size:10px;padding:2px 5px;opacity:.82}
+@media(max-height:690px){
+ body.study-fullscreen #study{gap:3px;padding:7px}
+ body.study-fullscreen #study .swipe-help{font-size:11px}
+ body.study-fullscreen #study .actions button,body.study-fullscreen #study #speak{min-height:33px;padding:5px}
+}
