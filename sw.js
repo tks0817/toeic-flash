@@ -1,5 +1,5 @@
 'use strict';
-const CACHE='toeicflash-private-v31';
+const CACHE='toeicflash-private-v35';
 const FILES=['./','./index.html','./app.js','./semantic-images.js','./style.css','./manifest.webmanifest','./icon.svg'];
 const OCR_HOSTS=new Set(['cdn.jsdelivr.net','tessdata.projectnaptha.com']);
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))});

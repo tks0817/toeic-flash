@@ -22,7 +22,7 @@ function rebuild(shuffle=false){let old=deck[pos];deck=filtered().map(w=>w.id);i
 function drawCard(){let w=words.find(w=>w.id===deck[pos]);$('front').textContent=w?.en||'単語がありません';$('pronunciation').textContent=w?(getPronunciation(w)||'発音記号：未登録（音声で確認）'):'';$('answerStats').textContent=w?`正解 ${w.correctCount||0}回 ／ 不正解 ${w.wrongCount||0}回`:'';$('back').textContent=w&&flipped?(w.ja+(w.note?'\n補足：'+w.note:'')) :'';drawMnemonic(w);$('progress').textContent=deck.length?`${pos+1} / ${deck.length} 枚`:'この条件のカードはありません';['card','speak','miss','know','prev','next'].forEach(id=>$(id).disabled=!w);stats()}
 function move(i){if(!deck.length)return;pos=(pos+i+deck.length)%deck.length;flipped=false;drawCard()}
 async function grade(status){let w=words.find(w=>w.id===deck[pos]);if(!w)return;w.status=status;if(status==='known')w.correctCount=(w.correctCount||0)+1;else w.wrongCount=(w.wrongCount||0)+1;w.reviewedAt=new Date().toISOString();await save();let p=pos;deck=filtered().map(w=>w.id);pos=deck.length?Math.min(p,deck.length-1):0;flipped=false;drawCard();toast('学習記録を保存しました')}
-function tab(id){for(let t of ['study','scan','words','privacy'])$(t).hidden=t!==id;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));if(id==='words')drawWords();if(id==='study')rebuild()}
+function tab(id){for(let t of ['study','timer','scan','words','privacy'])$(t).hidden=t!==id;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));if(id==='words')drawWords();if(id==='study')rebuild()}
 let selectedIds=new Set();
 function drawWords(){let root=$('wordList');root.replaceChildren();let q=normalize($('search').value);let arr=words.filter(w=>normalize(w.en).includes(q)||w.ja.includes(q));$('selectionCount').textContent=`${selectedIds.size}語選択中`;if(!arr.length){let p=document.createElement('p');p.className='muted';p.textContent='該当する単語がありません';root.append(p)}for(let w of arr){let el=document.createElement('div');el.className='word';let cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedIds.has(w.id);cb.setAttribute('aria-label',w.en+' を選択');cb.onchange=()=>{if(cb.checked)selectedIds.add(w.id);else selectedIds.delete(w.id);$('selectionCount').textContent=`${selectedIds.size}語選択中`};let text=document.createElement('div');let b=document.createElement('strong');b.textContent=w.en;let small=document.createElement('small');small.textContent=(w.kind==='example'?'📌 例文重要語句 · ':'')+w.ja+(w.note?' · 補足あり':'')+' · '+({new:'未学習',known:'覚えた',missed:'復習対象'}[w.status]||'未学習')+` · 正${w.correctCount||0}/誤${w.wrongCount||0}`;text.append(b,small);let edit=document.createElement('button');edit.className='secondary';edit.textContent='編集';edit.onclick=()=>editor(w);let del=document.createElement('button');del.className='danger';del.textContent='削除';del.onclick=async()=>{if(!confirm(`${w.en} を削除しますか？`))return;words=words.filter(x=>x.id!==w.id);selectedIds.delete(w.id);await save();drawWords();rebuild()};el.append(cb,text,edit,del);root.append(el)}}
 
@@ -213,7 +213,8 @@ async function importClipboardText(){
   $('paste').focus();
  }
 }
-function loadScript(url){return new Promise((res,rej)=>{let s=document.createElement('script');s.src=url;s.onload=res;s.onerror=()=>rej(Error('ローカルOCR部品がありません。READMEの導入手順を確認してください'));document.head.append(s)})}
+function loadScript(url){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=url;el.async=true;el.onload=()=>{if(window.Tesseract)resolve();else reject(Error('OCRスクリプトは読み込めましたがTesseractが見つかりません：'+url))};el.onerror=()=>reject(Error('OCRスクリプトを取得できません：'+url+'。GitHub Pagesの公開状態、ネット接続、広告ブロッカー、Safariのキャッシュを確認してください'));document.head.append(el)})}
+
 const OCR_CDN={
  script:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
  worker:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
@@ -241,7 +242,7 @@ async function getPhotoOCREngine(){
 async function testJapaneseOCR(){
  const btn=$('ocrSelfTest'),status=$('ocrStatus');btn.disabled=true;
  try{
-  status.textContent='OCR診断中：認識エンジンを読み込んでいます…';
+  status.textContent='v32 OCR診断中：認識エンジンを読み込んでいます…';
   const engine=await getPhotoOCREngine();
   const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=250;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,1200,250);
@@ -249,7 +250,7 @@ async function testJapaneseOCR(){
   let raw='';try{raw=await engine.recognize(canvas)}finally{canvas.width=canvas.height=0}
   const hasEnglish=/apple/i.test(raw),hasJapanese=/りんご|リンゴ|林檎/.test(raw);
   status.textContent=`OCR診断（${engine.name}）：英語 ${hasEnglish?'検出':'未検出'}／日本語 ${hasJapanese?'検出':'未検出'}。認識文字「${raw.replace(/\s+/g,' ').slice(0,150)}」。${hasEnglish&&hasJapanese?'基本認識に成功しました。教材写真の精度は別途確認が必要です。':'日本語OCRの準備・設定を確認してください。'}`;
- }catch(e){status.textContent='OCR診断失敗：'+e.message+'。インターネット接続・Safariの設定を確認してください。'}
+ }catch(e){status.textContent='v32 OCR診断失敗：'+e.message+'。外部OCR部品の取得に失敗した可能性があります。'}
  finally{btn.disabled=false}
 }
 async function doOCR(){
