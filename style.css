@@ -51,3 +51,9 @@ main > section.panel[hidden]{display:none!important}
 /* v47: allow vertical scrolling, handle horizontal card swipes in JS. */
 #card{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 .swipe-help{margin:0 0 8px;text-align:center;font-size:12px}
+
+/* v49: align speech checkboxes without narrow full-width input layout */
+.study-settings label:has(input[type="checkbox"]){display:flex;align-items:center;gap:10px;line-height:1.45}
+.study-settings label input[type="checkbox"]{width:22px!important;height:22px;min-width:22px;flex:0 0 22px;margin:0}
+.goal-controls{display:flex;align-items:center;gap:8px}.goal-controls input{min-width:0;flex:1;font-size:16px}.goal-controls button{flex:0 0 auto}
+#goalAchievement{font-weight:700}

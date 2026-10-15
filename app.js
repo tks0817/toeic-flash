@@ -519,7 +519,44 @@ function timeLoad(){try{const v=JSON.parse(localStorage.getItem(TIMER_KEY)||'{}'
 function timeSave(){try{localStorage.setItem(TIMER_KEY,JSON.stringify(timeState))}catch{}}
 function timeRender(){$('sessionTime').textContent=fmtTime(sessionMs);$('totalTime').textContent=fmtTime(timeState.totalMs)}
 function localDay(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function timeTick(){if(active){const now=performance.now();const delta=Math.min(60000,Math.max(0,now-lastTick));lastTick=now;sessionMs+=delta;timeState.totalMs+=delta;const day=localDay();timeState.daily[day]=(Number(timeState.daily[day])||0)+delta;timeSave()}timeRender();if(!$('timer').hidden)renderDaily()}
+const GOAL_KEY='toeicflash-daily-goal-min-v49',GOAL_NOTICE_KEY='toeicflash-daily-goal-notified-v49';
+function getGoalMinutes(){return Math.max(0,Math.min(1440,Number(localStorage.getItem(GOAL_KEY))||0))}
+function showGoal(){
+ const el=$('goalProgress');if(!el)return;
+ const target=getGoalMinutes(),today=Number(timeState.daily[localDay()]||0);
+ el.textContent=target?`今日の学習：${Math.floor(today/60000)}分 / 目標${target}分（${Math.min(100,Math.floor(today/(target*60000)*100))}%）`:'目標は未設定です';
+
+}
+function checkGoalReached(){
+ const target=getGoalMinutes();if(!target)return;
+ const day=localDay(),key=day+':'+target;
+ if(Number(timeState.daily[day]||0)<target*60000||localStorage.getItem(GOAL_NOTICE_KEY)===key)return;
+ localStorage.setItem(GOAL_NOTICE_KEY,key);
+ toast(`🎉 今日の目標${target}分を達成しました！`);
+ const banner=$('goalAchievement');if(banner){banner.hidden=false;banner.textContent=`🎉 本日の目標 ${target}分を達成しました！`}
+ // Browser notifications only when previously permitted. No automatic permission request.
+ if('Notification'in window&&Notification.permission==='granted'){
+  try{new Notification('TOEIC Flash：学習目標達成',{body:`今日の学習時間が${target}分に到達しました。`})}catch(e){reportBug('目標通知',e)}
+ }
+}
+function installPullRefresh(){
+ let start=null,tracking=false;
+ window.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1||window.scrollY>8||document.querySelector('dialog[open]')){start=null;return}
+  const t=e.touches[0];start={x:t.clientX,y:t.clientY};tracking=true;
+ },{passive:true});
+ window.addEventListener('touchend',e=>{
+  if(!tracking||!start||e.changedTouches.length!==1){start=null;tracking=false;return}
+  const t=e.changedTouches[0],dy=t.clientY-start.y,dx=Math.abs(t.clientX-start.x);
+  start=null;tracking=false;
+  if(window.scrollY>8||dy<105||dx>dy*.55)return;
+  if(!navigator.onLine){toast('オフラインのため更新確認できません');return}
+  toast('最新版を確認しています…');
+  checkForUpdate().catch(err=>reportBug('更新確認',err));
+ },{passive:true});
+ window.addEventListener('touchcancel',()=>{start=null;tracking=false},{passive:true});
+}
+function timeTick(){if(active){const now=performance.now();const delta=Math.min(60000,Math.max(0,now-lastTick));lastTick=now;sessionMs+=delta;timeState.totalMs+=delta;const day=localDay();timeState.daily[day]=(Number(timeState.daily[day])||0)+delta;timeSave();checkGoalReached()}timeRender();if(!$('timer').hidden){renderDaily();showGoal()}}
 function renderDaily(){const root=$('dailyList');if(!root)return;root.replaceChildren();const days=Object.keys(timeState.daily||{}).sort().reverse();if(!days.length){root.textContent='日別記録はまだありません。従来の累計時間は保持しています。';return}for(const day of days){const row=document.createElement('div');row.className='daily-row';const date=document.createElement('span');date.textContent=day;const inp=document.createElement('input');inp.type='number';inp.min='0';inp.max='1440';inp.step='1';inp.value=String(Math.round((Number(timeState.daily[day])||0)/60000));inp.setAttribute('aria-label',day+' の学習時間（分）');const unit=document.createElement('span');unit.textContent='分';const btn=document.createElement('button');btn.className='secondary';btn.textContent='保存';btn.onclick=()=>{const mins=Number(inp.value);if(!Number.isInteger(mins)||mins<0||mins>1440)return toast('0〜1440分の整数で入力してください');timePause();const old=Number(timeState.daily[day])||0;const next=mins*60000;timeState.daily[day]=next;timeState.totalMs=Math.max(0,timeState.totalMs+next-old);timeSave();timeRender();renderDaily();timeResume();toast(day+'の学習時間を保存しました')};row.append(date,inp,unit,btn);root.append(row)}}
 function addDailyDate(){const day=$('dailyDate').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||new Date(day+'T00:00:00').toString()==='Invalid Date')return toast('日付を選択してください');if(!(day in timeState.daily)){timeState.daily[day]=0;timeSave()}renderDaily()}
 function timeResume(){if(active||document.hidden)return;active=true;lastTick=performance.now()}
@@ -527,8 +564,8 @@ function timePause(){timeTick();active=false;timeSave()}
 function initTimer(){timeLoad();timeResume();timeRender();setInterval(timeTick,1000);document.addEventListener('visibilitychange',()=>document.hidden?timePause():timeResume());window.addEventListener('pagehide',timePause);window.addEventListener('pageshow',timeResume)}
 
 function applyTheme(mode){const v=mode==='dark'?'dark':'light';document.documentElement.dataset.theme=v;try{localStorage.setItem('toeicflash-theme',v)}catch{}}
-async function checkForUpdate(){const btn=$('checkUpdate');btn.disabled=true;try{if(!navigator.onLine)throw Error('オフラインです');if('serviceWorker'in navigator){const reg=await navigator.serviceWorker.getRegistration('./');if(reg)await reg.update()}const res=await fetch('./sw.js?version-check='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('更新確認に失敗しました');const text=await res.text();const m=text.match(/toeicflash-private-v(\d+)/);if(!m)throw Error('配信中のバージョンを判定できません');const server=Number(m[1]);if(server>44){if(confirm(`v${server}が公開されています。画面を再読み込みしますか？ 保存前の入力は失われます。`))location.reload()}else toast('公開中のバージョンはv'+server+'です。最新版です')}catch(e){toast('更新確認できません：'+e.message)}finally{btn.disabled=false}}
-function bind(){$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoTimer===null?startAuto():stopAuto();$('autoSeconds').onchange=()=>{if(autoTimer!==null)startAuto()};$('dailyDate').value=localDay();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;if($('autoRepeats'))$('autoRepeats').value=localStorage.getItem('toeicflash-auto-repeats')||'1';
+async function checkForUpdate(){const btn=$('checkUpdate');btn.disabled=true;try{if(!navigator.onLine)throw Error('オフラインです');if('serviceWorker'in navigator){const reg=await navigator.serviceWorker.getRegistration('./');if(reg)await reg.update()}const res=await fetch('./sw.js?version-check='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('更新確認に失敗しました');const text=await res.text();const m=text.match(/toeicflash-private-v(\d+)/);if(!m)throw Error('配信中のバージョンを判定できません');const server=Number(m[1]);const local=Number(document.querySelector('#headerVersion')?.textContent?.match(/v(\d+)/)?.[1]||49);if(server>local){if(confirm(`v${server}が公開されています。画面を再読み込みしますか？ 保存前の入力は失われます。`))location.reload()}else toast('公開中のバージョンはv'+server+'です。最新版です')}catch(e){toast('更新確認できません：'+e.message)}finally{btn.disabled=false}}
+function bind(){installPullRefresh();$('goalMinutes').value=String(getGoalMinutes()||15);$('goalSave').onclick=()=>{const n=Number($('goalMinutes').value);if(!Number.isInteger(n)||n<1||n>1440)return toast('目標は1〜1440分で設定してください');localStorage.setItem(GOAL_KEY,String(n));$('goalAchievement').hidden=true;showGoal();checkGoalReached();toast('今日の目標を保存しました')};$('goalNotify').onclick=async()=>{if(!('Notification'in window))return toast('この環境では通知に対応していません');try{const state=await Notification.requestPermission();toast(state==='granted'?'通知を許可しました':'通知が許可されていません')}catch(e){reportBug('通知許可',e);toast('通知の許可を取得できませんでした')}};showGoal();$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoTimer===null?startAuto():stopAuto();$('autoSeconds').onchange=()=>{if(autoTimer!==null)startAuto()};$('dailyDate').value=localDay();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;if($('autoRepeats'))$('autoRepeats').value=localStorage.getItem('toeicflash-auto-repeats')||'1';
 if($('autoRepeats'))$('autoRepeats').onchange=()=>{localStorage.setItem('toeicflash-auto-repeats',$('autoRepeats').value);autoRepeatDone=0};
 $('autoJapanese').checked=localStorage.getItem('toeicflash-auto-japanese')==='true';
 $('autoJapanese').onchange=()=>{localStorage.setItem('toeicflash-auto-japanese',String($('autoJapanese').checked));if($('autoJapanese').checked&&flipped)maybeSpeakJapanese()};
