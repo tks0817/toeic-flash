@@ -56,6 +56,8 @@ function speakCurrent(){
  u.onerror=e=>{if(e.error!=='canceled'&&e.error!=='interrupted')reportBug('読み上げ',e.error||'音声再生失敗')};
  speechSynthesis.speak(u)}catch(e){reportBug('読み上げ',e);toast('音声再生に失敗しました')}
 }
+function speakJapanese(){const w=words.find(w=>w.id===deck[pos]);if(!w||!w.ja||!('speechSynthesis'in window))return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(w.ja);u.lang='ja-JP';u.rate=.9;u.onerror=e=>{if(!['canceled','interrupted'].includes(e.error))reportBug('日本語読み上げ',e.error||'音声再生失敗')};speechSynthesis.speak(u)}catch(e){reportBug('日本語読み上げ',e)}}
+function maybeSpeakJapanese(){if($('autoJapanese')?.checked&&deck.length)speakJapanese()}
 function maybeAutoSpeak(){
  if(!$('autoPronounce')?.checked||!deck.length)return;
  // iOS may require the first user gesture to enable speech synthesis.
@@ -76,9 +78,39 @@ function rebuild(shuffle=false){let old=deck[pos];deck=filtered().map(w=>w.id);i
 function recordView(){const w=words.find(w=>w.id===deck[pos]);if(!w)return;if(lastViewedCard===w.id)return;lastViewedCard=w.id;w.viewCount=(w.viewCount||0)+1;save().catch(()=>{});}
 function drawCard(){let w=words.find(w=>w.id===deck[pos]);const test=isTestMode();$('front').textContent=w?.en||'単語がありません';$('pronunciation').textContent=w?(getPronunciation(w)||'発音記号：未登録（音声で確認）'):'';$('answerStats').textContent=w?(test?`正解 ${w.correctCount||0}回`:`カード閲覧 ${w.viewCount||0}回`):'';$('back').textContent=w&&flipped?(w.ja+(w.note?'\n補足：'+w.note:'')):'';$('wordImage').hidden=!flipped; if(flipped)drawMnemonic(w);else $('wordImage').replaceChildren();$('progress').textContent=deck.length?`${pos+1} / ${deck.length} 枚`:'この条件のカードはありません';['card','speak','prev','next'].forEach(id=>$(id).disabled=!w);['miss','know'].forEach(id=>{$(id).disabled=!w;$(id).hidden=!test});$('autoControls').hidden=test;stats()}
 function isTestMode(){return $('studyMode').value==='test'}
+let autoRepeatDone=0;
 function stopAuto(){if(autoTimer!==null){clearInterval(autoTimer);autoTimer=null}const b=$('autoToggle');if(b)b.textContent='▶ 自動めくり開始'}
-function autoStep(){if(!deck.length||isTestMode()||$('study').hidden){stopAuto();return}if(!flipped){flipped=true;drawCard()}else move(1)}
-function startAuto(){stopAuto();if(isTestMode())return;const sec=Number($('autoSeconds').value);if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');$('autoSeconds').value=String(sec);autoTimer=setInterval(autoStep,sec*1000);$('autoToggle').textContent='■ 自動めくり停止';toast(`${sec}秒ごとに表・裏を切り替えます`)}
+function autoStep(){if(!deck.length||isTestMode()||$('study').hidden){stopAuto();return}
+ if(!flipped){flipped=true;drawCard();maybeSpeakJapanese();return}
+ autoRepeatDone++;
+ const limit=Math.min(5,Math.max(1,Number($('autoRepeats').value)||1));
+ if(autoRepeatDone<limit){flipped=false;drawCard();maybeAutoSpeak()}
+ else{autoRepeatDone=0;move(1)}
+}
+function startAuto(){stopAuto();autoRepeatDone=0;if(isTestMode())return;const sec=Number($('autoSeconds').value);if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');$('autoSeconds').value=String(sec);autoTimer=setInterval(autoStep,sec*1000);$('autoToggle').textContent='■ 自動めくり停止';toast(`${sec}秒ごとに表・裏を切り替え、${$('autoRepeats').value}回繰り返します`)}
+// v47: horizontal swipe on the flashcard only. Vertical scrolling stays native.
+// A swipe never marks a test answer; it only navigates between cards.
+let cardSwipeStart=null, suppressCardClick=false;
+function installCardSwipe(){
+ const card=$('card');if(!card)return;
+ card.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1||!deck.length){cardSwipeStart=null;return}
+  const t=e.touches[0];cardSwipeStart={x:t.clientX,y:t.clientY,at:Date.now()};
+ },{passive:true});
+ card.addEventListener('touchcancel',()=>{cardSwipeStart=null},{passive:true});
+ card.addEventListener('touchend',e=>{
+  const start=cardSwipeStart;cardSwipeStart=null;
+  if(!start||e.changedTouches.length!==1||!deck.length)return;
+  const t=e.changedTouches[0],dx=t.clientX-start.x,dy=t.clientY-start.y;
+  // Ignore vertical scrolling and short taps; require deliberate horizontal movement.
+  if(Math.abs(dx)<65||Math.abs(dx)<Math.abs(dy)*1.45)return;
+  suppressCardClick=true;
+  // Suppress the synthetic click following touchend, without swallowing future taps.
+  setTimeout(()=>{suppressCardClick=false},450);
+  stopAuto();autoRepeatDone=0;
+  move(dx<0?1:-1);
+ },{passive:true});
+}
 function move(i){if(!deck.length)return;pos=(pos+i+deck.length)%deck.length;flipped=false;recordView();drawCard();maybeAutoSpeak()}
 async function grade(status){let w=words.find(w=>w.id===deck[pos]);if(!w)return;w.status=status;if(status==='known')w.correctCount=(w.correctCount||0)+1;else w.wrongCount=(w.wrongCount||0)+1;w.reviewedAt=new Date().toISOString();await save();let p=pos;deck=filtered().map(w=>w.id);pos=deck.length?Math.min(p,deck.length-1):0;flipped=false;recordView();drawCard();maybeAutoSpeak();toast('学習記録を保存しました')}
 function tab(id){
@@ -496,7 +528,11 @@ function initTimer(){timeLoad();timeResume();timeRender();setInterval(timeTick,1
 
 function applyTheme(mode){const v=mode==='dark'?'dark':'light';document.documentElement.dataset.theme=v;try{localStorage.setItem('toeicflash-theme',v)}catch{}}
 async function checkForUpdate(){const btn=$('checkUpdate');btn.disabled=true;try{if(!navigator.onLine)throw Error('オフラインです');if('serviceWorker'in navigator){const reg=await navigator.serviceWorker.getRegistration('./');if(reg)await reg.update()}const res=await fetch('./sw.js?version-check='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('更新確認に失敗しました');const text=await res.text();const m=text.match(/toeicflash-private-v(\d+)/);if(!m)throw Error('配信中のバージョンを判定できません');const server=Number(m[1]);if(server>44){if(confirm(`v${server}が公開されています。画面を再読み込みしますか？ 保存前の入力は失われます。`))location.reload()}else toast('公開中のバージョンはv'+server+'です。最新版です')}catch(e){toast('更新確認できません：'+e.message)}finally{btn.disabled=false}}
-function bind(){$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoTimer===null?startAuto():stopAuto();$('autoSeconds').onchange=()=>{if(autoTimer!==null)startAuto()};$('dailyDate').value=localDay();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;$('autoPronounce').checked=localStorage.getItem('toeicflash-auto-pronounce')==='true';$('autoPronounce').onchange=()=>{localStorage.setItem('toeicflash-auto-pronounce',String($('autoPronounce').checked));if($('autoPronounce').checked)maybeAutoSpeak()};$('clearBugs').onclick=()=>{if(!confirm('端末内のエラー記録を消去しますか？'))return;localStorage.removeItem(BUG_KEY);renderBugs()};$('repairBugs').onclick=repairBugs;$('bugSelfTest').onclick=()=>{reportBug('診断テスト','手動診断テスト（実際の不具合ではありません）');toast('テスト記録を追加しました')};renderBugs();document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));$('card').onclick=()=>{flipped=!flipped;drawCard()};$('prev').onclick=()=>{stopAuto();move(-1)};$('next').onclick=()=>{stopAuto();move(1)};$('shuffle').onclick=()=>{stopAuto();rebuild(true)};$('filter').onchange=()=>{stopAuto();rebuild()};$('know').onclick=()=>grade('known');$('miss').onclick=()=>grade('missed');$('speak').onclick=speakCurrent;
+function bind(){$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoTimer===null?startAuto():stopAuto();$('autoSeconds').onchange=()=>{if(autoTimer!==null)startAuto()};$('dailyDate').value=localDay();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;$('autoRepeats').value=localStorage.getItem('toeicflash-auto-repeats')||'1';
+$('autoRepeats').onchange=()=>{localStorage.setItem('toeicflash-auto-repeats',$('autoRepeats').value);autoRepeatDone=0};
+$('autoJapanese').checked=localStorage.getItem('toeicflash-auto-japanese')==='true';
+$('autoJapanese').onchange=()=>{localStorage.setItem('toeicflash-auto-japanese',String($('autoJapanese').checked));if($('autoJapanese').checked&&flipped)maybeSpeakJapanese()};
+$('autoPronounce').checked=localStorage.getItem('toeicflash-auto-pronounce')==='true';$('autoPronounce').onchange=()=>{localStorage.setItem('toeicflash-auto-pronounce',String($('autoPronounce').checked));if($('autoPronounce').checked)maybeAutoSpeak()};$('clearBugs').onclick=()=>{if(!confirm('端末内のエラー記録を消去しますか？'))return;localStorage.removeItem(BUG_KEY);renderBugs()};$('repairBugs').onclick=repairBugs;$('bugSelfTest').onclick=()=>{reportBug('診断テスト','手動診断テスト（実際の不具合ではありません）');toast('テスト記録を追加しました')};renderBugs();document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));$('card').onclick=()=>{if(suppressCardClick){suppressCardClick=false;return}flipped=!flipped;drawCard();if(flipped)maybeSpeakJapanese();else maybeAutoSpeak()};installCardSwipe();$('prev').onclick=()=>{stopAuto();move(-1)};$('next').onclick=()=>{stopAuto();move(1)};$('shuffle').onclick=()=>{stopAuto();rebuild(true)};$('filter').onchange=()=>{stopAuto();rebuild()};$('know').onclick=()=>grade('known');$('miss').onclick=()=>grade('missed');$('speak').onclick=speakCurrent;
 $('addMarkedPair').onclick=addMarkedPair;$('pasteClipboard').onclick=async()=>{try{if(!navigator.clipboard?.readText)throw Error('Safariでクリップボードの直接読み取りに対応していません');const text=await navigator.clipboard.readText();if(!text.trim())throw Error('コピーされた文字がありません');if(text.length>50000)throw Error('文字数が多すぎます。写真ごとにコピーしてください');$('paste').value=text;extractText(text);$('clipboardStatus').textContent=`${candidates.length}語を抽出しました。日本語訳を確認してください。`;if(candidates.length)$('candidates').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){$('clipboardStatus').textContent='直接取り込みできませんでした。下の「テキストを貼り付けて登録」を開き、長押しで貼り付けてください。';}};$('splitSpread').onclick=splitSpread;$('splitEntries').onclick=splitEntries;$('extractRegions').onclick=extractRegions;$('splitPosition').oninput=()=>{$('splitValue').textContent=$('splitPosition').value+'%'};$('photo').onchange=()=>{if([...$('entryRegions').querySelectorAll('textarea[data-region]')].some(el=>el.value.trim())&&!confirm('領域別に入力した未保存テキストが消えます。写真を変更しますか？')){$('photo').value='';return}discardPreviewOnly();let file=$('photo').files[0];if(!file)return;previewUrl=URL.createObjectURL(file);$('preview').src=previewUrl;$('preview').hidden=false;$('spreadTools').hidden=false;$('ocr').disabled=false;$('ocrStatus').textContent='写真を選択しました。候補と照合後に「写真を破棄」を押してください'};$('discard').onclick=()=>{if([...$('entryRegions').querySelectorAll('textarea[data-region]')].some(el=>el.value.trim())&&!confirm('領域別の未保存テキストも消えます。写真を破棄しますか？'))return;discardPhoto();$('ocrStatus').textContent='写真を破棄しました'};$('ocr').onclick=doOCR;$('ocrSelfTest').onclick=testJapaneseOCR;$('clipboardImport').onclick=importClipboardText;$('fromText').onclick=()=>extractText($('paste').value);if($('resetTimer'))$('resetTimer').onclick=()=>{if(!confirm('学習時間の今回・累計をリセットしますか？ 単語や正誤記録は残ります。'))return;timePause();sessionMs=0;timeState.totalMs=0;timeState.sessions=0;timeState.daily={};timeSave();timeRender();renderDaily();timeResume();toast('学習時間をリセットしました')};async function resetReviewCounts(ids){
  const targets=words.filter(w=>ids.has(w.id));
  if(!targets.length)return toast('対象の単語がありません');

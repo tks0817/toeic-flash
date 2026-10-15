@@ -41,3 +41,13 @@ nav button{min-width:0;padding:11px 1px;font-size:clamp(10px,2.6vw,12px);line-he
 
 /* v45: explicitly preserve visibility of the selected top-level panel. */
 main > section.panel[hidden]{display:none!important}
+
+/* v46 */
+.version-chip{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 8px);z-index:100;background:#102236;color:#fff;padding:3px 7px;border-radius:7px;font-size:12px;box-shadow:0 2px 5px #0004;pointer-events:none}
+.flashcard .card-count{font-size:13px!important;opacity:.75}
+#autoSeconds,#autoRepeats,#autoPronounce,#autoJapanese{font-size:16px}
+#autoControls input,#autoControls select{font-size:16px!important}
+
+/* v47: allow vertical scrolling, handle horizontal card swipes in JS. */
+#card{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.swipe-help{margin:0 0 8px;text-align:center;font-size:12px}
