@@ -1,13 +1,1 @@
-TOEIC Flash PWA - iPhone向け
-
-内容: 写真を選択/撮影→英単語OCR→日本語訳を確認・編集→カード保存。フラッシュカード学習/音声/苦手復習/登録/検索/JSONバックアップ。
-
-重要:
-1) 通常のローカルHTMLファイルをiPhoneで開いてもPWAのインストールはできません。HTTPSサイトに公開してください。
-2) GitHub Pagesでの公開例: iPhoneのSafariでgithub.comにログイン → 新しいpublicリポジトリ作成 → このフォルダ内のファイル（zip自体ではない）をアップロード → Settings > Pages > Deploy from a branch > main /root を選択 → 公開されたHTTPSのURLをSafariで開きます。
-3) Safariの共有メニュー → 「ホーム画面に追加」 → 「Webアプリとして開く」 → 追加。
-4) 初回の文字認識ではインターネット接続が必要です。Tesseract.jsが外部CDNから読み込まれ、英語認識モデルがダウンロードされます（処理そのものは端末内）。通信できない場合はテキスト貼り付けまたは手入力が可能です。オフライン時のOCRは保証されません。
-5) 日本語訳は内蔵の小規模辞書で候補を表示し、辞書にない語は手入力が必要です。写真中に英語と日本語が並んでいても自動対応付けはしません。
-6) 学習データはブラウザ内のlocalStorageに保存。削除・ブラウザ変更で消える場合があるので、JSONバックアップを推奨。
-7) 公式TOEIC書籍の内容を同梱したアプリではありません。教材の撮影・登録は利用者が権利と利用条件を確認してください。
-8) この成果物はPWAのソース一式でありApp Store配布のIPAファイルではありません。
+Offline OCR vendor files are NOT included in this package. See README.md. The app fails closed rather than fetching from CDNs.
