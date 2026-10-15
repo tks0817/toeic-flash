@@ -198,3 +198,21 @@ body.study-fullscreen main>nav button{font-size:clamp(10px,2.6vw,12px);line-heig
 .marker-controls button{min-height:44px;font-size:13px;padding:8px 5px}
 .header-go-bottom{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 44px);z-index:101;padding:7px 9px;font-size:12px;box-shadow:0 3px 8px #0003}
 .header-go-bottom[hidden]{display:none!important}
+
+/* v71: larger flashcard, uncluttered swipe-first study screen */
+#study .swipe-help,#study .marker-controls,#study .hidden-navigation{display:none!important}
+#study #card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:clamp(390px,62dvh,760px);height:auto;gap:clamp(18px,3dvh,30px);padding:58px 20px 58px;overflow-y:auto}
+body.study-fullscreen #study #card{flex:1 1 auto;min-height:0;max-height:none!important;height:auto;gap:clamp(14px,2.5dvh,28px);padding:56px 18px 54px}
+#study #card #front,body.study-fullscreen #study #card #front{font-size:clamp(34px,9vw,52px)!important;line-height:1.25;overflow-wrap:anywhere}
+#study #card #back,body.study-fullscreen #study #card #back{font-size:clamp(22px,6vw,32px)!important;line-height:1.4;white-space:pre-line;overflow-wrap:anywhere}
+#study #card #pronunciation[hidden]{display:none!important}
+#study #card .card-progress{position:absolute;right:14px;top:12px;font-size:clamp(14px,3.5vw,18px)!important;opacity:.9;color:#eaf5ff}
+#study #card .card-view-count{position:absolute;right:14px;bottom:12px;font-size:clamp(12px,3vw,15px)!important;opacity:.9;color:#eaf5ff}
+#study #speak,body.study-fullscreen #study #speak{display:block;width:100%;font-size:clamp(29px,8vw,38px)!important;min-height:58px!important;padding:7px!important;line-height:1.2}
+body.study-fullscreen #study{justify-content:stretch!important}
+#study #card .yellow-marker{display:inline}
+
+/* v72: mark stress above the stressed letter */
+#study #front ruby.stress-ruby{ruby-position:over;display:inline-ruby;white-space:nowrap}
+#study #front ruby.stress-ruby rt{font-size:.40em;line-height:1;font-weight:800;color:inherit;text-align:center}
+#study #front{padding-top:.2em}
