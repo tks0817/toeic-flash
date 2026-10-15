@@ -130,6 +130,35 @@ function renderAccentWord(w){
  }
  if(position<en.length)front.append(document.createTextNode(en.slice(position)));
 }
+// v76: Automatically fit vocabulary and translation into one line.
+let cardFitFrame=0;
+function fitCardLine(el,maximum,minimum){
+ if(!el||!el.textContent.trim())return;
+ const available=Math.max(0,el.parentElement.clientWidth-40);
+ if(available<40)return;
+ const prop=el.id==='front'?'--fit-en':'--fit-ja';
+ const setSize=size=>el.style.setProperty(prop,size+'px');
+ setSize(maximum);
+ const measure=()=>{const range=document.createRange();range.selectNodeContents(el);return range.getBoundingClientRect().width};
+ if(measure()<=available)return;
+ let lo=minimum,hi=maximum;
+ for(let i=0;i<13;i++){
+  const mid=(lo+hi)/2;setSize(mid);
+  if(measure()<=available)lo=mid;else hi=mid;
+ }
+ setSize(Number(lo.toFixed(2)));
+}
+function fitCardLines(){
+ cancelAnimationFrame(cardFitFrame);
+ cardFitFrame=requestAnimationFrame(()=>{
+  const card=$('card');if(!card||card.offsetWidth===0)return;
+  const maxEn=Math.min(78,Math.max(51,innerWidth*.135));
+  const maxJa=Math.min(48,Math.max(33,innerWidth*.09));
+  fitCardLine($('front'),maxEn,12);
+  fitCardLine($('back'),maxJa,11);
+ });
+}
+window.addEventListener('resize',fitCardLines,{passive:true});
 function drawCard(){
  const w=words.find(item=>item.id===deck[pos]);const test=isTestMode();
  renderAccentWord(w);
@@ -142,6 +171,7 @@ function drawCard(){
  $('back').classList.toggle('yellow-marker',!!w&&flipped&&$('highlightJapanese')?.checked);
  $('wordImage').hidden=!flipped;
  if(flipped)drawMnemonic(w);else $('wordImage').replaceChildren();
+ fitCardLines();
  $('progress').textContent=deck.length?`${pos+1} / ${deck.length}`:'0 / 0';
  ['card','speak','prev','next'].forEach(id=>$(id).disabled=!w);
  ['miss','know'].forEach(id=>{$(id).disabled=!w;$(id).hidden=!test});
