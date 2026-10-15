@@ -117,3 +117,16 @@ body.study-fullscreen .version-chip{top:calc(env(safe-area-inset-top) + 9px)}
 #candidateList .candidate>div>input,#candidateList .candidate>div>textarea,#candidateList .candidate>div>select{width:100%;max-width:100%;min-width:0;font-size:16px}
 #candidateList .candidate>div>label{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
 #candidateList .candidate>div>label input[type=checkbox]{width:20px!important;height:20px;flex:0 0 20px;min-width:20px;margin:0;padding:0;appearance:auto;-webkit-appearance:checkbox}
+
+/* v55: center the study content vertically and use the lower half of the viewport.
+   Do not affect other tabs or change the flashcard's text size. */
+body.study-fullscreen{min-height:100dvh;display:flex;flex-direction:column}
+body.study-fullscreen header{flex:0 0 auto}
+body.study-fullscreen main{flex:1 1 auto;height:auto!important;max-height:none!important;min-height:0;width:100%;display:flex;flex-direction:column}
+body.study-fullscreen #study{flex:1 1 auto;min-height:0;justify-content:space-evenly!important;gap:clamp(5px,1.2dvh,14px)}
+body.study-fullscreen #study #card{flex:1 1 auto;min-height:140px;max-height:none!important;height:auto;margin:clamp(8px,1.7dvh,22px) 0}
+@media(min-height:740px){body.study-fullscreen #study #card{max-height:57dvh!important}}
+
+/* v56: iOS Safari horizontal gestures on card, keep vertical scroll */
+#card,#card *{touch-action:pan-y!important;-webkit-user-select:none;user-select:none}
+#card{overscroll-behavior-x:contain}

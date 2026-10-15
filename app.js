@@ -105,8 +105,8 @@ async function migrate(){let old=legacyRead();let added=mergeIncoming(old);if(ad
 function stats(){$('total').textContent=words.length;$('learned').textContent=words.filter(w=>w.status==='known').length;$('weak').textContent=words.filter(w=>w.status!=='known').length}
 function reviewScore(w){return (w.wrongCount||0)*3-(w.correctCount||0)+(w.status==='missed'?3:0)+(w.status==='new'?1:0)}
 function filtered(){let f=$('filter').value;let result=words.filter(w=>f==='all'||(f==='weak'&&w.status!=='known')||(f==='priority'&&((w.wrongCount||0)>0||w.status==='missed'))||w.status===f);if(f==='priority')result.sort((a,b)=>reviewScore(b)-reviewScore(a));return result}
-function rebuild(shuffle=false,allowSpeech=true){let old=deck[pos];deck=filtered().map(w=>w.id);if(shuffle)for(let i=deck.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}pos=Math.max(0,deck.indexOf(old));flipped=false;recordView();drawCard();if(allowSpeech)maybeAutoSpeak()}
-function recordView(){const w=words.find(w=>w.id===deck[pos]);if(!w)return;if(lastViewedCard===w.id)return;lastViewedCard=w.id;w.viewCount=(w.viewCount||0)+1;save().catch(()=>{});}
+function rebuild(shuffle=false,allowSpeech=true,countView=false){let old=deck[pos];deck=filtered().map(w=>w.id);if(shuffle)for(let i=deck.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}pos=Math.max(0,deck.indexOf(old));flipped=false;if(countView)recordView();drawCard();if(allowSpeech)maybeAutoSpeak()}
+function recordView(){const w=words.find(w=>w.id===deck[pos]);if(!w)return;/* Count each deliberate visit, including revisiting the same card in a one-card deck. Do not count flip or redraw. */w.viewCount=(w.viewCount||0)+1;save().catch(()=>{});}
 function drawCard(){let w=words.find(w=>w.id===deck[pos]);const test=isTestMode();$('front').textContent=w?.en||'単語がありません';$('pronunciation').textContent=w?(getPronunciation(w)||'発音記号：未登録（音声で確認）'):'';$('answerStats').textContent=w?(test?`正解 ${w.correctCount||0}回`:`カード閲覧 ${w.viewCount||0}回`):'';$('back').textContent=w&&flipped?(w.ja+(w.note?'\n補足：'+w.note:'')):'';$('wordImage').hidden=!flipped; if(flipped)drawMnemonic(w);else $('wordImage').replaceChildren();$('progress').textContent=deck.length?`${pos+1} / ${deck.length} 枚`:'この条件のカードはありません';['card','speak','prev','next'].forEach(id=>$(id).disabled=!w);['miss','know'].forEach(id=>{$(id).disabled=!w;$(id).hidden=!test});$('autoControls').hidden=test;stats()}
 function isTestMode(){return $('studyMode').value==='test'}
 let autoRepeatDone=0;
@@ -119,28 +119,32 @@ function autoStep(){if(!deck.length||isTestMode()||$('study').hidden){stopAuto()
  else{autoRepeatDone=0;move(1)}
 }
 function startAuto(){stopAuto();autoRepeatDone=0;if(isTestMode())return;const sec=Number($('autoSeconds').value);if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');$('autoSeconds').value=String(sec);autoTimer=setInterval(autoStep,sec*1000);maybeAutoSpeak();$('autoToggle').textContent='■ 停止';toast(`${sec}秒ごとに表・裏を切り替え、${$('autoRepeats')?.value||1}回繰り返します`)}
-// v47: horizontal swipe on the flashcard only. Vertical scrolling stays native.
-// A swipe never marks a test answer; it only navigates between cards.
-let cardSwipeStart=null, suppressCardClick=false;
+// v56: Safari-compatible swipe tracking with pointer fallback.
+// Horizontal swipes navigate, taps flip, and vertical movements remain scrollable.
+let swipeStart=null, suppressCardClick=false, swipeConsumedAt=0;
 function installCardSwipe(){
  const card=$('card');if(!card)return;
- card.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1||!deck.length){cardSwipeStart=null;return}
-  const t=e.touches[0];cardSwipeStart={x:t.clientX,y:t.clientY,at:Date.now()};
- },{passive:true});
- card.addEventListener('touchcancel',()=>{cardSwipeStart=null},{passive:true});
- card.addEventListener('touchend',e=>{
-  const start=cardSwipeStart;cardSwipeStart=null;
-  if(!start||e.changedTouches.length!==1||!deck.length)return;
-  const t=e.changedTouches[0],dx=t.clientX-start.x,dy=t.clientY-start.y;
-  // Ignore vertical scrolling and short taps; require deliberate horizontal movement.
-  if(Math.abs(dx)<65||Math.abs(dx)<Math.abs(dy)*1.45)return;
+ const start=(x,y,source)=>{if(!deck.length)return;swipeStart={x,y,source,done:false};};
+ const finish=(x,y,source)=>{
+  const a=swipeStart;if(!a||a.source!==source||a.done)return;
+  swipeStart=null;
+  const dx=x-a.x,dy=y-a.y;
+  if(Math.abs(dx)<42||Math.abs(dx)<Math.abs(dy)*1.15)return;
+  if(Date.now()-swipeConsumedAt<350)return;
+  swipeConsumedAt=Date.now();
   suppressCardClick=true;
-  // Suppress the synthetic click following touchend, without swallowing future taps.
-  setTimeout(()=>{suppressCardClick=false},450);
+  setTimeout(()=>{suppressCardClick=false},650);
   stopAuto();autoRepeatDone=0;
-  move(dx<0?1:-1);
- },{passive:true});
+  move(dx<0?-1:1);
+  if(deck.length===1)toast(dx<0?'← 前へ （1枚目に戻りました）':'次へ → （1枚目に戻りました）');
+ };
+ card.addEventListener('touchstart',e=>{if(e.touches.length===1){const t=e.touches[0];start(t.clientX,t.clientY,'touch')}},{passive:true});
+ card.addEventListener('touchend',e=>{if(e.changedTouches.length===1){const t=e.changedTouches[0];finish(t.clientX,t.clientY,'touch')}},{passive:true});
+ card.addEventListener('touchcancel',()=>{swipeStart=null},{passive:true});
+ // Pointer events cover browsers that do not dispatch TouchEvents.
+ card.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||e.pointerType==='pen')start(e.clientX,e.clientY,'pointer')},{passive:true});
+ card.addEventListener('pointerup',e=>{if(e.pointerType==='mouse'||e.pointerType==='pen')finish(e.clientX,e.clientY,'pointer')},{passive:true});
+ card.addEventListener('click',e=>{if(suppressCardClick){e.preventDefault();e.stopImmediatePropagation();suppressCardClick=false}},true);
 }
 function move(i){if(!deck.length)return;pos=(pos+i+deck.length)%deck.length;flipped=false;recordView();drawCard();maybeAutoSpeak()}
 async function grade(status){let w=words.find(w=>w.id===deck[pos]);if(!w)return;w.status=status;if(status==='known')w.correctCount=(w.correctCount||0)+1;else w.wrongCount=(w.wrongCount||0)+1;w.reviewedAt=new Date().toISOString();await save();let p=pos;deck=filtered().map(w=>w.id);pos=deck.length?Math.min(p,deck.length-1):0;flipped=false;recordView();drawCard();maybeAutoSpeak();toast('学習記録を保存しました')}
@@ -151,7 +155,7 @@ function tab(id){
  stopAuto();
  for(const t of ids){const el=$(t);if(!el)continue;el.hidden=t!==id;el.style.setProperty('display',t===id?'block':'none','important');}
  document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===id);b.setAttribute('aria-selected',String(b.dataset.tab===id))});
- try{if(id==='words')drawWords();if(id==='study')rebuild(false,false);if(id==='timer')renderDaily()}catch(e){reportBug('画面表示 '+id,e);console.error(e)}
+ try{if(id==='words')drawWords();if(id==='study')rebuild(false,false,true);if(id==='timer')renderDaily()}catch(e){reportBug('画面表示 '+id,e);console.error(e)}
 }
 let selectedIds=new Set();
 function drawWords(){let root=$('wordList');root.replaceChildren();let q=normalize($('search').value);let arr=words.filter(w=>normalize(w.en).includes(q)||w.ja.includes(q));$('selectionCount').textContent=`${selectedIds.size}語選択中`;if(!arr.length){let p=document.createElement('p');p.className='muted';p.textContent='該当する単語がありません';root.append(p)}for(let w of arr){let el=document.createElement('div');el.className='word';let cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedIds.has(w.id);cb.setAttribute('aria-label',w.en+' を選択');cb.onchange=()=>{if(cb.checked)selectedIds.add(w.id);else selectedIds.delete(w.id);$('selectionCount').textContent=`${selectedIds.size}語選択中`};let text=document.createElement('div');let b=document.createElement('strong');b.textContent=w.en;let small=document.createElement('small');small.textContent=(w.kind==='example'?'📌 例文重要語句 · ':'')+w.ja+(w.note?' · 補足あり':'')+' · '+({new:'未学習',known:'覚えた',missed:'復習対象'}[w.status]||'未学習')+` · 利用${w.viewCount||0}回 · 正解${w.correctCount||0}回`;text.append(b,small);let edit=document.createElement('button');edit.className='secondary';edit.textContent='編集';edit.onclick=()=>editor(w);let del=document.createElement('button');del.className='danger';del.textContent='削除';del.onclick=async()=>{if(!confirm(`${w.en} を削除しますか？`))return;words=words.filter(x=>x.id!==w.id);selectedIds.delete(w.id);await save();drawWords();rebuild()};el.append(cb,text,edit,del);root.append(el)}}
