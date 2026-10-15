@@ -835,3 +835,10 @@ document.querySelectorAll('[data-page-up]').forEach(button=>{
   document.scrollingElement?.scrollTo({top:0,behavior:'smooth'});
  });
 });
+
+// v67: Cancel must bypass native required-field validation.
+$('cancelEditor').addEventListener('click',()=>{
+ editing=null;
+ $('editor').close('cancel');
+});
+$('editor').addEventListener('cancel',()=>{editing=null});
