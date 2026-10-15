@@ -130,3 +130,16 @@ body.study-fullscreen #study #card{flex:1 1 auto;min-height:140px;max-height:non
 /* v56: iOS Safari horizontal gestures on card, keep vertical scroll */
 #card,#card *{touch-action:pan-y!important;-webkit-user-select:none;user-select:none}
 #card{overscroll-behavior-x:contain}
+
+/* v59: compact reorder controls on iPhone */
+#wordList .word{grid-template-columns:24px 38px minmax(0,1fr) auto auto}
+#wordList .word .reorder-controls{display:flex;flex-direction:column;gap:3px;width:38px;overflow:visible}
+#wordList .word .reorder-controls button{padding:4px 6px;min-height:28px;font-size:15px;line-height:1}
+@media(max-width:380px){#wordList .word{grid-template-columns:22px 32px minmax(0,1fr) auto auto;gap:4px}#wordList .word .reorder-controls{width:32px}}
+
+/* v60: drag handle for touch reorder */
+#wordList .word{grid-template-columns:24px 42px minmax(0,1fr) auto auto}
+#wordList .word .drag-handle{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-size:27px;line-height:1;min-height:48px;padding:5px;cursor:grab}
+#wordList .word.dragging{background:#e5f4ff;border-radius:9px;box-shadow:0 0 0 2px #1677a7;opacity:.8}
+#wordList .word.drag-over{box-shadow:inset 0 -4px 0 #1688bd}
+@media(max-width:380px){#wordList .word{grid-template-columns:22px 36px minmax(0,1fr) auto auto;gap:4px}}
