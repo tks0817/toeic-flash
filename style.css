@@ -283,3 +283,13 @@ body.study-fullscreen #study #card #front .stress-accent{
 .folder-move label{flex:1;min-width:155px}
 .folder-move select{width:100%;display:block;margin-top:5px}
 .folder-move button{flex:1;min-width:180px}
+
+/* v84: select by global vocabulary numbers */
+.range-selection{margin:14px 0;padding:15px;border:1px solid #526e89;border-radius:14px;background:rgba(69,117,159,.12)}
+.range-selection h3{margin:0 0 8px;font-size:1.08rem}
+.range-fields{display:flex;gap:12px;align-items:end;margin:12px 0}
+.range-fields label{flex:1;min-width:0;font-weight:600}
+.range-fields input{width:100%;display:block;margin-top:5px;box-sizing:border-box}
+.range-selection .actions{flex-wrap:wrap}
+.range-selection .actions button{flex:1;min-width:125px}
+#rangeFeedback{overflow-wrap:anywhere}
