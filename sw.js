@@ -1,5 +1,5 @@
 'use strict';
-const CACHE='toeicflash-private-v79';
+const CACHE='toeicflash-private-v81';
 const FILES=['./','./index.html','./app.js','./semantic-images.js','./style.css','./manifest.webmanifest','./icon.svg'];
 const SHELL=new Set(FILES.map(path=>new URL(path,self.registration.scope).pathname));
 self.addEventListener('install',event=>{

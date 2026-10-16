@@ -19,3 +19,6 @@ This ZIP does not include the required third-party OCR/PDF/WASM/language assets;
 
 ## Legal
 Personal study with lawfully acquired materials may fall under private-copying exceptions, but copyright exceptions are conditional. Never commit scans, textbook excerpts, imported cards, backup files or passwords to a public repository. Check third-party software and model licenses before redistribution. A private app reduces exposure, but cannot guarantee zero legal risk.
+
+
+v81: 単語ファイル（フォルダー）の作成・名前変更・選択単語の移動・ファイル別学習・暗号化バックアップへのファイル情報同梱に対応。

@@ -263,3 +263,23 @@ body.study-fullscreen #study #card #front .stress-accent{
 /* v78: keep version in brand and bottom shortcut at upper-right across tabs */
 .version-chip,body.study-fullscreen .version-chip{position:static!important;display:inline-block!important;top:auto!important;right:auto!important;margin-top:3px;font-size:12px!important;padding:2px 6px!important;opacity:1!important;box-shadow:none!important;background:#27445f!important;color:#fff!important}
 .header-go-bottom,body.study-fullscreen .header-go-bottom{position:fixed!important;top:calc(env(safe-area-inset-top) + 8px)!important;right:8px!important;z-index:101!important;padding:8px 9px!important;font-size:12px!important;max-width:110px!important}
+
+/* v80: keep the marker behind the complete last glyph and avoid placeholder images */
+#study #card .yellow-marker{padding-left:.13em!important;padding-right:.21em!important;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.word-image[hidden]{display:none!important}
+.diary-panel textarea{width:100%;box-sizing:border-box}.diary-row{display:block;width:100%;margin:5px 0;text-align:left;white-space:normal}
+
+/* v81: day-by-day vocabulary folders */
+.folder-tools{margin:14px 0;padding:15px;border:1px solid #48617a;border-radius:15px;background:rgba(84,125,160,.10)}
+.folder-tools h2{font-size:1.1rem;margin:0 0 7px}
+.folder-create,.folder-move,.folder-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.folder-create input{flex:1;min-width:150px}
+.folder-row{padding:9px 0;border-bottom:1px solid rgba(150,170,195,.22)}
+.folder-row span{flex:1;min-width:150px;overflow-wrap:anywhere}
+.folder-row button{padding:9px 11px;font-size:.85rem}
+.folder-filter-label{display:block;margin:10px 0;font-weight:600}
+.folder-filter-label select{display:block;width:100%;margin-top:5px}
+.folder-move{padding:12px;border:1px solid #506780;border-radius:12px}
+.folder-move label{flex:1;min-width:155px}
+.folder-move select{width:100%;display:block;margin-top:5px}
+.folder-move button{flex:1;min-width:180px}
