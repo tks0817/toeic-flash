@@ -291,37 +291,86 @@ function drawCard(){
  $('autoControls').hidden=test;stats();
 }
 function isTestMode(){return $('studyMode').value==='test'}
-let autoRepeatDone=0,autoGeneration=0;
-function stopAuto(){autoGeneration++;if(autoTimer!==null){clearTimeout(autoTimer);autoTimer=null}if('speechSynthesis'in window)speechSynthesis.cancel();const b=$('autoToggle');if(b)b.textContent='▶ 自動'}
-function autoSpeakAndWait(lang,generation){return new Promise(resolve=>{
- if(generation!==autoGeneration)return resolve();
- const enabled=lang==='en'?$('autoPronounce')?.checked:$('autoJapanese')?.checked;
- const w=words.find(x=>x.id===deck[pos]);
- if(!enabled||!w||!('speechSynthesis'in window))return resolve();
- const text=lang==='en'?w.en:String(w.ja||'').replace(/\s*[［\[【（(][^］\]】）)]*[］\]】）)]/g,'').replace(/[／/|｜]/g,'、').trim();
- if(!text)return resolve();
- try{const u=new SpeechSynthesisUtterance(text);u.lang=lang==='en'?'en-US':'ja-JP';u.rate=Number($(lang==='en'?'englishRate':'japaneseRate')?.value)||(lang==='en'?.82:1.02);
- let finished=false;const finish=()=>{if(finished)return;finished=true;clearTimeout(watchdog);resolve()};
- u.onend=finish;u.onerror=e=>{if(!['canceled','interrupted'].includes(e.error)&&generation===autoGeneration)reportBug('自動読み上げ',e.error);finish()};
- const watchdog=setTimeout(finish,Math.max(12000,text.length*1300));
- speechSynthesis.cancel();speechSynthesis.speak(u);
- }catch(e){reportBug('自動読み上げ',e);resolve()}
-})}
-function autoWait(ms,generation){return new Promise(resolve=>{if(generation!==autoGeneration)return resolve();autoTimer=setTimeout(()=>{autoTimer=null;resolve()},ms)})}
+// v85: The auto-play button independently controls both languages.
+// Per-card pronunciation checkboxes only govern manual card flips.
+let autoRepeatDone=0,autoGeneration=0,autoRunning=false,autoSpeech=null;
+let autoSleepResolve=null;
+function stopAuto(){
+ autoGeneration++;autoRunning=false;
+ if(autoTimer!==null&&autoTimer>=0)clearTimeout(autoTimer);
+ autoTimer=null;
+ if(autoSleepResolve){const done=autoSleepResolve;autoSleepResolve=null;done()}
+ if(autoSpeech){try{autoSpeech.cancel()}catch{}autoSpeech=null}
+ if('speechSynthesis'in window)try{speechSynthesis.cancel()}catch{}
+ const b=$('autoToggle');if(b)b.textContent='▶ 自動';
+}
+function autoSpeakAndWait(lang,generation){
+ return new Promise(resolve=>{
+  if(generation!==autoGeneration||!autoRunning)return resolve();
+  const w=words.find(x=>x.id===deck[pos]);
+  if(!w||!('speechSynthesis'in window)||typeof SpeechSynthesisUtterance==='undefined'){
+   reportBug('自動読み上げ','この環境で音声合成が利用できません');return resolve();
+  }
+  const text=lang==='en'?w.en:String(w.ja||'').replace(/\s*[［\[【（(][^］\]】）)]*[］\]】）)]/g,'').replace(/[／/|｜]/g,'、').trim();
+  if(!text)return resolve();
+  let settled=false,watchdog=null,utterance;
+  const finish=()=>{if(settled)return;settled=true;if(watchdog!==null)clearTimeout(watchdog);if(autoSpeech?.utterance===utterance)autoSpeech=null;resolve()};
+  try{
+   utterance=new SpeechSynthesisUtterance(text);
+   utterance.lang=lang==='en'?'en-US':'ja-JP';
+   utterance.rate=Number($(lang==='en'?'englishRate':'japaneseRate')?.value)||(lang==='en'?.82:1.02);
+   if(lang==='ja'){
+    const voices=speechSynthesis.getVoices();
+    utterance.voice=voices.find(v=>/^ja[-_]/i.test(v.lang)&&v.localService)||voices.find(v=>/^ja[-_]/i.test(v.lang))||null;
+   }
+   utterance.onend=finish;
+   utterance.onerror=e=>{if(generation===autoGeneration&&!['canceled','interrupted'].includes(e.error))reportBug('自動読み上げ',e.error||'読み上げ失敗');finish()};
+   // Only a stalled speech engine triggers this fallback; normal transitions
+   // always wait for the utterance's actual end event.
+   watchdog=setTimeout(()=>{if(generation===autoGeneration)reportBug('自動読み上げ','音声の終了通知が届きませんでした');finish()},Math.max(25000,text.length*2200));
+   autoSpeech={utterance,cancel:finish};
+   speechSynthesis.cancel();
+   // On iOS, enqueue on the next event loop after cancel to avoid
+   // dropping a newly queued utterance.
+   setTimeout(()=>{if(generation!==autoGeneration||!autoRunning){finish();return}try{speechSynthesis.speak(utterance)}catch(e){reportBug('自動読み上げ',e);finish()}},60);
+  }catch(e){reportBug('自動読み上げ',e);finish()}
+ });
+}
+function autoWait(ms,generation){
+ return new Promise(resolve=>{
+  if(generation!==autoGeneration||!autoRunning)return resolve();
+  let done=false;
+  const finish=()=>{if(done)return;done=true;if(autoTimer!==null&&autoTimer>=0)clearTimeout(autoTimer);autoTimer=null;if(autoSleepResolve===finish)autoSleepResolve=null;resolve()};
+  autoSleepResolve=finish;
+  autoTimer=setTimeout(finish,Math.max(0,ms));
+ });
+}
 async function autoLoop(generation,sec){
- while(generation===autoGeneration&&deck.length&&!isTestMode()&&!$('study').hidden){
-  const started=Date.now();await autoSpeakAndWait(flipped?'ja':'en',generation);
-  if(generation!==autoGeneration)return;
+ while(generation===autoGeneration&&autoRunning&&deck.length&&!isTestMode()&&!$('study').hidden){
+  const started=Date.now();
+  await autoSpeakAndWait(flipped?'ja':'en',generation);
+  if(generation!==autoGeneration||!autoRunning)return;
   await autoWait(Math.max(0,sec*1000-(Date.now()-started)),generation);
-  if(generation!==autoGeneration)return;
+  if(generation!==autoGeneration||!autoRunning)return;
   if(!flipped){flipped=true;drawCard();continue}
-  autoRepeatDone++;const limit=Math.min(5,Math.max(1,Number($('autoRepeats')?.value)||1));
+  autoRepeatDone++;
+  const limit=Math.min(5,Math.max(1,Number($('autoRepeats')?.value)||1));
   if(autoRepeatDone<limit){flipped=false;drawCard()}
   else{autoRepeatDone=0;pos=(pos+1)%deck.length;flipped=false;recordView();drawCard()}
  }
  if(generation===autoGeneration)stopAuto();
 }
-function startAuto(){stopAuto();autoRepeatDone=0;if(isTestMode()||!deck.length)return;const sec=Number($('autoSeconds').value);if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');$('autoSeconds').value=String(sec);$('autoToggle').textContent='■ 停止';const generation=autoGeneration;autoTimer=-1;autoLoop(generation,sec).catch(e=>{reportBug('自動再生',e);stopAuto()});toast('読み上げ完了と表示秒数の両方を待って進みます')}
+function startAuto(){
+ stopAuto();autoRepeatDone=0;
+ if(isTestMode()||!deck.length)return toast('学習する単語がありません');
+ const sec=Number($('autoSeconds').value);
+ if(!Number.isInteger(sec)||sec<2||sec>120)return toast('2〜120秒で設定してください');
+ $('autoSeconds').value=String(sec);
+ autoRunning=true;$('autoToggle').textContent='■ 停止';
+ const generation=autoGeneration;
+ autoLoop(generation,sec).catch(e=>{reportBug('自動再生',e);stopAuto()});
+ toast('英語・日本語を読み終えてから切り替えます');
+}
 // v56: Safari-compatible swipe tracking with pointer fallback.
 // Horizontal swipes navigate, taps flip, and vertical movements remain scrollable.
 let swipeStart=null, suppressCardClick=false, swipeConsumedAt=0;
@@ -1014,7 +1063,7 @@ async function checkForUpdate(){
  }catch(e){toast('更新確認できません：'+e.message);reportBug('更新確認',e)}
  finally{btn.disabled=false}
 }
-function bind(){installPullRefresh();$('goalMinutes').value=String(getGoalMinutes()||15);$('goalSave').onclick=()=>{const n=Number($('goalMinutes').value);if(!Number.isInteger(n)||n<1||n>1440)return toast('目標は1〜1440分で設定してください');localStorage.setItem(GOAL_KEY,String(n));$('goalAchievement').hidden=true;showGoal();checkGoalReached();toast('今日の目標を保存しました')};$('goalNotify').onclick=async()=>{if(!('Notification'in window))return toast('この環境では通知に対応していません');try{const state=await Notification.requestPermission();toast(state==='granted'?'通知を許可しました':'通知が許可されていません')}catch(e){reportBug('通知許可',e);toast('通知の許可を取得できませんでした')}};showGoal();$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoTimer===null?startAuto():stopAuto();$('openFlashSettings').onclick=()=>tab('privacy');$('autoSeconds').onchange=()=>{if(autoTimer!==null)startAuto()};$('dailyDate').value=localDay();$('diaryDate').value=localDay();$('diaryDate').onchange=diaryShow;$('diarySave').onclick=diarySave;diaryShow();diaryList();$('planStart').value=localStorage.getItem('toeicflash-plan-start-v80')||'2026-10-15';$('planStart').onchange=()=>{localStorage.setItem('toeicflash-plan-start-v80',$('planStart').value);updatePlan()};updatePlan();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;if($('autoRepeats'))$('autoRepeats').value=localStorage.getItem('toeicflash-auto-repeats')||'1';
+function bind(){installPullRefresh();$('goalMinutes').value=String(getGoalMinutes()||15);$('goalSave').onclick=()=>{const n=Number($('goalMinutes').value);if(!Number.isInteger(n)||n<1||n>1440)return toast('目標は1〜1440分で設定してください');localStorage.setItem(GOAL_KEY,String(n));$('goalAchievement').hidden=true;showGoal();checkGoalReached();toast('今日の目標を保存しました')};$('goalNotify').onclick=async()=>{if(!('Notification'in window))return toast('この環境では通知に対応していません');try{const state=await Notification.requestPermission();toast(state==='granted'?'通知を許可しました':'通知が許可されていません')}catch(e){reportBug('通知許可',e);toast('通知の許可を取得できませんでした')}};showGoal();$('pdfRead').onclick=readPdf;$('studyMode').onchange=()=>{stopAuto();drawCard()};$('autoToggle').onclick=()=>autoRunning?stopAuto():startAuto();$('openFlashSettings').onclick=()=>tab('privacy');$('autoSeconds').onchange=()=>{if(autoRunning)startAuto()};$('dailyDate').value=localDay();$('diaryDate').value=localDay();$('diaryDate').onchange=diaryShow;$('diarySave').onclick=diarySave;diaryShow();diaryList();$('planStart').value=localStorage.getItem('toeicflash-plan-start-v80')||'2026-10-15';$('planStart').onchange=()=>{localStorage.setItem('toeicflash-plan-start-v80',$('planStart').value);updatePlan()};updatePlan();$('addDailyDate').onclick=addDailyDate;$('themeMode').value=localStorage.getItem('toeicflash-theme')||'light';$('themeMode').onchange=()=>applyTheme($('themeMode').value);$('checkUpdate').onclick=checkForUpdate;if($('autoRepeats'))$('autoRepeats').value=localStorage.getItem('toeicflash-auto-repeats')||'1';
 if($('autoRepeats'))$('autoRepeats').onchange=()=>{localStorage.setItem('toeicflash-auto-repeats',$('autoRepeats').value);autoRepeatDone=0};
 for(const [id,key,defaultRate] of [['englishRate','toeicflash-en-rate',.82],['japaneseRate','toeicflash-ja-rate',1.02]]){const el=$(id);if(el){el.value=String(Number(localStorage.getItem(key))||defaultRate);$(id+'Value').textContent=Number(el.value).toFixed(2)+'倍';el.oninput=()=>{$(id+'Value').textContent=Number(el.value).toFixed(2)+'倍';localStorage.setItem(key,el.value)}}}
 $('autoJapanese').checked=localStorage.getItem('toeicflash-auto-japanese')==='true';
