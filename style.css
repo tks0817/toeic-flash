@@ -269,7 +269,7 @@ body.study-fullscreen #study #card #front .stress-accent{
 .word-image[hidden]{display:none!important}
 .diary-panel textarea{width:100%;box-sizing:border-box}.diary-row{display:block;width:100%;margin:5px 0;text-align:left;white-space:normal}
 
-/* v81: day-by-day vocabulary folders */
+/* v82: day-by-day vocabulary folders */
 .folder-tools{margin:14px 0;padding:15px;border:1px solid #48617a;border-radius:15px;background:rgba(84,125,160,.10)}
 .folder-tools h2{font-size:1.1rem;margin:0 0 7px}
 .folder-create,.folder-move,.folder-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:10px 0}

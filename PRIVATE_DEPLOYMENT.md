@@ -21,4 +21,10 @@ This ZIP does not include the required third-party OCR/PDF/WASM/language assets;
 Personal study with lawfully acquired materials may fall under private-copying exceptions, but copyright exceptions are conditional. Never commit scans, textbook excerpts, imported cards, backup files or passwords to a public repository. Check third-party software and model licenses before redistribution. A private app reduces exposure, but cannot guarantee zero legal risk.
 
 
-v81: 単語ファイル（フォルダー）の作成・名前変更・選択単語の移動・ファイル別学習・暗号化バックアップへのファイル情報同梱に対応。
+v83: 単語ファイル（フォルダー）の作成・名前変更・選択単語の移動・ファイル別学習・暗号化バックアップへのファイル情報同梱に対応。
+
+
+v83: コピーした英文の候補登録時、IndexedDBへ変更のあった単語だけを保存するよう改善。保存失敗時には候補を残し、エラー種別を表示。単語を追加した場合は選択中のファイルへ分類。端末実機での検証は未実施。
+
+
+v83: 新規フォルダー作成後は全単語を表示し、新規フォルダーを移動先に指定。空フォルダーから全単語一覧へ戻る操作を追加。検索条件も解除。
