@@ -293,3 +293,17 @@ body.study-fullscreen #study #card #front .stress-accent{
 .range-selection .actions{flex-wrap:wrap}
 .range-selection .actions button{flex:1;min-width:125px}
 #rangeFeedback{overflow-wrap:anywhere}
+
+/* v87 daily plan summary */
+#planResult .plan-line{margin:8px 0;line-height:1.5}
+
+/* v88 manual start */
+#manualStart{flex:1;min-width:190px} .study-start-controls{display:flex;flex-wrap:wrap;gap:8px}
+
+/* v89: common Japanese grammar labels and non-destructive folder editing */
+.edit-phrase-tools{margin:12px 0;padding:12px;border:1px solid #8b9bac;border-radius:12px}
+.phrase-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.phrase-chip{min-width:52px;padding:9px 11px;touch-action:manipulation}
+.folder-edit-tools{margin:12px 0}
+.danger-zone{margin:14px 0;padding:10px;border:1px solid #ab6970;border-radius:10px}
+.danger-zone summary{cursor:pointer;font-weight:600}

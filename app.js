@@ -132,7 +132,7 @@ function save(){
   toast('保存失敗（'+name+'）。'+advice);throw e
  });
 }
-function sanitize(w){if(!w||typeof w.en!=='string'||typeof w.ja!=='string')return null;let en=normalize(w.en).slice(0,100),ja=clean(w.ja).slice(0,500);if(!en||!ja)return null;return {id:typeof w.id==='string'&&w.id.length<150?w.id:uid(),en,ja,status:['new','known','missed'].includes(w.status)?w.status:'new',...(typeof w.reviewedAt==='string'?{reviewedAt:w.reviewedAt}:{}),...(typeof w.createdAt==='string'?{createdAt:w.createdAt}:{}),viewCount:Math.max(0,Math.floor(Number(w.viewCount)||0)),correctCount:Math.max(0,Math.floor(Number(w.correctCount)||0)),wrongCount:Math.max(0,Math.floor(Number(w.wrongCount)||0)),...(typeof w.ipa==='string'?{ipa:w.ipa.slice(0,80)}:{}),kind:['headword','example'].includes(w.kind)?w.kind:'headword',note:typeof w.note==='string'?w.note.slice(0,500):'',markEn:!!w.markEn,markJa:!!w.markJa,stress:typeof w.stress==='string'?w.stress.slice(0,110):'',folderId:typeof w.folderId==='string'?w.folderId.slice(0,100):'',...(Number.isSafeInteger(w.order)&&w.order>=0?{order:w.order}:{})}}
+function sanitize(w){if(!w||typeof w.en!=='string'||typeof w.ja!=='string')return null;let en=normalize(w.en).slice(0,100),ja=clean(w.ja).slice(0,500);if(!en||!ja)return null;return {id:typeof w.id==='string'&&w.id.length<150?w.id:uid(),en,ja,status:['new','known','missed'].includes(w.status)?w.status:'new',...(typeof w.reviewedAt==='string'?{reviewedAt:w.reviewedAt}:{}),...(typeof w.nextReviewAt==='string'&&Number.isFinite(Date.parse(w.nextReviewAt))?{nextReviewAt:w.nextReviewAt}:{}),reviewStreak:Math.max(0,Math.min(100,Math.floor(Number(w.reviewStreak)||0))),...(typeof w.createdAt==='string'?{createdAt:w.createdAt}:{}),viewCount:Math.max(0,Math.floor(Number(w.viewCount)||0)),correctCount:Math.max(0,Math.floor(Number(w.correctCount)||0)),wrongCount:Math.max(0,Math.floor(Number(w.wrongCount)||0)),...(typeof w.ipa==='string'?{ipa:w.ipa.slice(0,80)}:{}),kind:['headword','example'].includes(w.kind)?w.kind:'headword',note:typeof w.note==='string'?w.note.slice(0,500):'',markEn:!!w.markEn,markJa:!!w.markJa,stress:typeof w.stress==='string'?w.stress.slice(0,110):'',folderId:typeof w.folderId==='string'?w.folderId.slice(0,100):'',...(Number.isSafeInteger(w.order)&&w.order>=0?{order:w.order}:{})}}
 // v81: Folder metadata lives locally; membership lives on each IndexedDB card.
 const FOLDERS_KEY='toeicflash-folders-v81';
 let folders=[],wordFolderFilter='all',studyFolderFilter='all';
@@ -169,6 +169,30 @@ function refreshFolderUI(){
   const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='解除';
   remove.onclick=async()=>{if(!confirm(`「${f.name}」を解除しますか？単語${folderCount(f.id)}語は削除せず未分類に戻します。`))return;const before=structuredClone(words),old=folders.slice();for(const w of words)if(w.folderId===f.id)w.folderId='';try{await save();persistFolders(folders.filter(x=>x.id!==f.id));refreshFolderUI();drawWords();rebuild(false,false);toast('ファイルを解除しました（単語は残っています）')}catch(e){words=before;try{persistFolders(old)}catch{}refreshFolderUI();drawWords();toast('解除できませんでした')}};
   row.append(label,open,rename,remove);list.append(row);
+ }
+}
+// v89: Removing a card from a group never deletes its IndexedDB record.
+async function unfileSelectedWords(){
+ const ids=new Set([...selectedIds].filter(id=>words.some(w=>w.id===id&&w.folderId)));
+ if(!ids.size)return toast('ファイル内の単語を選択してください');
+ const previous=structuredClone(words);
+ for(const w of words)if(ids.has(w.id))w.folderId='';
+ try{await save();selectedIds.clear();refreshFolderUI();drawWords();rebuild(false,false);toast(`${ids.size}語を未分類に戻しました。データは残っています`)}
+ catch(e){words=previous;refreshFolderUI();drawWords();toast('ファイルから外せませんでした')}
+}
+function initEditPhraseChips(){
+ const area=$('editPhraseChips');if(!area)return;
+ const phrases=['〜','［名］','［動］','［形］','［前］','［副］','［接］','［代］','［助］','［自］','［他］','［可］','［不可］','［複］','［句］','（〜を）','・','／','、','；'];
+ area.replaceChildren();
+ for(const phrase of phrases){
+  const button=document.createElement('button');button.type='button';button.className='secondary phrase-chip';button.textContent=phrase;
+  button.setAttribute('aria-label',phrase+'を日本語訳に挿入');
+  button.onclick=()=>{
+   const input=$('editJa'),a=input.selectionStart??input.value.length,b=input.selectionEnd??a;
+   input.value=input.value.slice(0,a)+phrase+input.value.slice(b);
+   input.focus();input.setSelectionRange(a+phrase.length,a+phrase.length);
+  };
+  area.append(button);
  }
 }
 function folderMatches(w,filter){return filter==='all'||(filter==='unfiled'?!w.folderId:w.folderId===filter)}
@@ -215,10 +239,15 @@ async function moveSelectedToFolder(){
 function legacyRead(){try{const data=JSON.parse(localStorage.getItem(LEGACY)||'null');return Array.isArray(data)?data.map(sanitize).filter(Boolean):[]}catch(e){console.warn('旧データの読み取り失敗',e);return []}}
 function mergeIncoming(incoming){ensureWordOrder();const byId=new Map(words.map(w=>[w.id,w])),byEn=new Map(words.map(w=>[normalize(w.en),w]));let n=0;for(let w of incoming){if(byId.has(w.id)||byEn.has(normalize(w.en)))continue;words.push(w);byId.set(w.id,w);byEn.set(normalize(w.en),w);n++}ensureWordOrder();return n}
 async function migrate(){let old=legacyRead();let added=mergeIncoming(old);if(added)await save();return {found:old.length,added}}
-function stats(){$('total').textContent=words.length;$('learned').textContent=words.filter(w=>w.status==='known').length;$('weak').textContent=words.filter(w=>w.status!=='known').length}
+function stats(){updatePlan();refreshReviewSummary();$('total').textContent=words.length;$('learned').textContent=words.filter(w=>w.status==='known').length;$('weak').textContent=words.filter(w=>w.status!=='known').length}
+// v87: spaced repetition based on recall results.
+const REVIEW_INTERVALS=[1,3,7,14,30,60,90];
+function reviewDue(w,now=Date.now()){return !w.nextReviewAt||!Number.isFinite(Date.parse(w.nextReviewAt))||Date.parse(w.nextReviewAt)<=now}
+function scheduleRecall(w,correct){w.reviewStreak=correct?Math.min(100,(Number(w.reviewStreak)||0)+1):0;const days=correct?REVIEW_INTERVALS[Math.min(w.reviewStreak-1,REVIEW_INTERVALS.length-1)]:0;w.nextReviewAt=new Date(Date.now()+days*86400000).toISOString()}
+function refreshReviewSummary(){const el=$('reviewDueCount');if(!el)return;const scope=words.filter(w=>folderMatches(w,studyFolderFilter));el.textContent=`今日の復習対象：${scope.filter(w=>reviewDue(w)).length}語 ／ 対象${scope.length}語`}
 function reviewScore(w){return (w.wrongCount||0)*3-(w.correctCount||0)+(w.status==='missed'?3:0)+(w.status==='new'?1:0)}
-function filtered(){let f=$('filter').value;let result=words.filter(w=>folderMatches(w,studyFolderFilter)&&(f==='all'||(f==='weak'&&w.status!=='known')||(f==='priority'&&((w.wrongCount||0)>0||w.status==='missed'))||w.status===f));if(f==='priority')result.sort((a,b)=>reviewScore(b)-reviewScore(a));return result}
-function rebuild(shuffle=false,allowSpeech=true,countView=false){let old=deck[pos];deck=filtered().map(w=>w.id);if(shuffle)for(let i=deck.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}pos=Math.max(0,deck.indexOf(old));flipped=false;if(countView)recordView();drawCard();if(allowSpeech)maybeAutoSpeak()}
+function filtered(){let f=$('filter').value;let result=words.filter(w=>folderMatches(w,studyFolderFilter)&&(f==='all'||(f==='due'&&reviewDue(w))||(f==='weak'&&w.status!=='known')||(f==='priority'&&((w.wrongCount||0)>0||w.status==='missed'))||w.status===f));if(f==='priority')result.sort((a,b)=>reviewScore(b)-reviewScore(a));return result}
+function rebuild(shuffle=false,allowSpeech=true,countView=false){refreshReviewSummary();updatePlan();let old=deck[pos];deck=filtered().map(w=>w.id);if(shuffle)for(let i=deck.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}pos=Math.max(0,deck.indexOf(old));flipped=false;if(countView)recordView();drawCard();if(allowSpeech)maybeAutoSpeak()}
 function recordView(){const w=words.find(w=>w.id===deck[pos]);if(!w)return;/* Count each deliberate visit, including revisiting the same card in a one-card deck. Do not count flip or redraw. */w.viewCount=(w.viewCount||0)+1;save().catch(()=>{});}
 function renderAccentWord(w){
  const front=$('front');front.replaceChildren();
@@ -399,7 +428,7 @@ function installCardSwipe(){
  card.addEventListener('click',e=>{if(suppressCardClick){e.preventDefault();e.stopImmediatePropagation();suppressCardClick=false}},true);
 }
 function move(i){if(!deck.length)return;pos=(pos+i+deck.length)%deck.length;flipped=false;recordView();drawCard();maybeAutoSpeak()}
-async function grade(status){let w=words.find(w=>w.id===deck[pos]);if(!w)return;w.status=status;if(status==='known')w.correctCount=(w.correctCount||0)+1;else w.wrongCount=(w.wrongCount||0)+1;w.reviewedAt=new Date().toISOString();await save();let p=pos;deck=filtered().map(w=>w.id);pos=deck.length?Math.min(p,deck.length-1):0;flipped=false;recordView();drawCard();maybeAutoSpeak();toast('学習記録を保存しました')}
+async function grade(status){let w=words.find(w=>w.id===deck[pos]);if(!w)return;w.status=status;if(status==='known')w.correctCount=(w.correctCount||0)+1;else w.wrongCount=(w.wrongCount||0)+1;w.reviewedAt=new Date().toISOString();scheduleRecall(w,status==='known');await save();refreshReviewSummary();updatePlan();let p=pos;deck=filtered().map(w=>w.id);pos=deck.length?Math.min(p,deck.length-1):0;flipped=false;recordView();drawCard();maybeAutoSpeak();toast('学習記録を保存しました')}
 function tab(id){
  const ids=['study','timer','scan','words','privacy'];
  if(!ids.includes(id))id='study';
@@ -485,7 +514,14 @@ async function placeWordBefore(targetId){
 }
 function drawWords(){let root=$('wordList');root.replaceChildren();let q=normalize($('search').value);let arr=visibleWords();const reorderEnabled=!q&&wordFolderFilter==='all';
  if(!reorderEnabled)movingWordId=null;
- $('orderHint').textContent=reorderEnabled?(movingWordId?'② 移動先の「ここへ移動」を押すと、その単語の直前に入ります。もう一度「移動を取消」で中止できます。':'① 移動したい単語の「移動」を押す → ② 移動先の「ここへ移動」を押す。') :'順番変更は「すべてのファイル」を表示し、検索を解除すると使えます。';$('selectionCount').textContent=`${selectedIds.size}語選択中`;if(!arr.length){let p=document.createElement('p');p.className='muted';p.textContent=wordFolderFilter!=='all'?(words.length?'このファイルにはまだ単語がありません。下の「すべての単語を表示」を押し、移動する単語にチェックを入れてください。':'登録済みの単語がありません。先に単語を登録してください。'):'該当する単語がありません。検索欄も確認してください。';root.append(p);if(words.length){const show=document.createElement('button');show.type='button';show.className='primary';show.textContent='すべての単語を表示して選択';show.onclick=()=>{wordFolderFilter='all';$('wordFolderFilter').value='all';$('search').value='';drawWords()};root.append(show)}}for(let [rowIndex,w] of arr.entries()){let el=document.createElement('div');el.className='word';if(movingWordId===w.id)el.classList.add('move-source');let cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedIds.has(w.id);cb.setAttribute('aria-label',w.en+' を選択');cb.onchange=()=>{if(cb.checked)selectedIds.add(w.id);else selectedIds.delete(w.id);$('selectionCount').textContent=`${selectedIds.size}語選択中`};let text=document.createElement('div');let b=document.createElement('strong');b.textContent=w.en;let small=document.createElement('small');small.textContent=(w.kind==='example'?'📌 例文重要語句 · ':'')+w.ja+(w.note?' · 補足あり':'')+' · 📁 '+folderName(w.folderId)+' · '+({new:'未学習',known:'覚えた',missed:'復習対象'}[w.status]||'未学習')+` · 利用${w.viewCount||0}回 · 正解${w.correctCount||0}回`;text.append(b,small);let edit=document.createElement('button');edit.className='secondary';edit.textContent='編集';edit.onclick=()=>editor(w);let del=document.createElement('button');del.className='danger';del.textContent='削除';del.onclick=async()=>{if(!confirm(`${w.en} を削除しますか？`))return;words=words.filter(x=>x.id!==w.id);selectedIds.delete(w.id);await save();refreshFolderUI();drawWords();rebuild(false,false)};let orderNumber=document.createElement('span');orderNumber.className='order-number';orderNumber.textContent=String(globalOrderedWords().findIndex(x=>x.id===w.id)+1);
+ $('orderHint').textContent=reorderEnabled?(movingWordId?'② 移動先の「ここへ移動」を押すと、その単語の直前に入ります。もう一度「移動を取消」で中止できます。':'① 移動したい単語の「移動」を押す → ② 移動先の「ここへ移動」を押す。') :'順番変更は「すべてのファイル」を表示し、検索を解除すると使えます。';$('selectionCount').textContent=`${selectedIds.size}語選択中`;if(!arr.length){let p=document.createElement('p');p.className='muted';p.textContent=wordFolderFilter!=='all'?(words.length?'このファイルにはまだ単語がありません。下の「すべての単語を表示」を押し、移動する単語にチェックを入れてください。':'登録済みの単語がありません。先に単語を登録してください。'):'該当する単語がありません。検索欄も確認してください。';root.append(p);if(words.length){const show=document.createElement('button');show.type='button';show.className='primary';show.textContent='すべての単語を表示して選択';show.onclick=()=>{wordFolderFilter='all';$('wordFolderFilter').value='all';$('search').value='';drawWords()};root.append(show)}}for(let [rowIndex,w] of arr.entries()){let el=document.createElement('div');el.className='word';if(movingWordId===w.id)el.classList.add('move-source');let cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedIds.has(w.id);cb.setAttribute('aria-label',w.en+' を選択');cb.onchange=()=>{if(cb.checked)selectedIds.add(w.id);else selectedIds.delete(w.id);$('selectionCount').textContent=`${selectedIds.size}語選択中`};let text=document.createElement('div');let b=document.createElement('strong');b.textContent=w.en;let small=document.createElement('small');small.textContent=(w.kind==='example'?'📌 例文重要語句 · ':'')+w.ja+(w.note?' · 補足あり':'')+' · 📁 '+folderName(w.folderId)+' · '+({new:'未学習',known:'覚えた',missed:'復習対象'}[w.status]||'未学習')+` · 利用${w.viewCount||0}回 · 正解${w.correctCount||0}回`;text.append(b,small);let edit=document.createElement('button');edit.className='secondary';edit.textContent='編集';edit.onclick=()=>editor(w);let del=document.createElement('button');del.className='danger';del.textContent=wordFolderFilter!=='all'&&w.folderId?'ファイルから外す':'完全削除';del.onclick=async()=>{
+ const unfile=wordFolderFilter!=='all'&&!!w.folderId;
+ if(!confirm(unfile?`「${w.en}」をファイルから外しますか？単語データは残ります。`:`「${w.en}」の単語データを完全削除しますか？`))return;
+ const before=structuredClone(words);
+ if(unfile){w.folderId=''}else{words=words.filter(x=>x.id!==w.id);selectedIds.delete(w.id)}
+ try{await save();refreshFolderUI();drawWords();rebuild(false,false);toast(unfile?'ファイルから外しました（単語は残っています）':'単語を完全削除しました')}
+ catch(e){words=before;refreshFolderUI();drawWords();toast('変更を保存できませんでした')}
+};let orderNumber=document.createElement('span');orderNumber.className='order-number';orderNumber.textContent=String(globalOrderedWords().findIndex(x=>x.id===w.id)+1);
  let moveBtn=document.createElement('button');moveBtn.type='button';moveBtn.className='secondary move-word-button';
  moveBtn.disabled=!reorderEnabled;
  moveBtn.textContent=movingWordId===w.id?'移動を取消':movingWordId?'ここへ移動':'移動';
@@ -1028,7 +1064,27 @@ const DIARY_KEY='toeicflash-study-diary-v80';
 function readDiary(){try{const saved=JSON.parse(localStorage.getItem(DIARY_KEY)||'{}')||{};return {'2026-10-15':'アプリ開発と60まで',...saved}}catch{return {'2026-10-15':'アプリ開発と60まで'}}}
 function diaryShow(){const date=$('diaryDate').value||localDay();const minutes=Math.floor(Number(timeState.daily[date]||0)/60000);$('diaryTime').textContent=`${Math.floor(minutes/60)}時間${minutes%60}分（学習時間から自動反映）`;$('diaryComment').value=readDiary()[date]||''}
 function diarySave(){const date=$('diaryDate').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return toast('日付を選んでください');const all=readDiary();all[date]=$('diaryComment').value.slice(0,2000);try{localStorage.setItem(DIARY_KEY,JSON.stringify(all));diaryList();toast('日記を保存しました')}catch(e){reportBug('日記保存',e);toast('日記を保存できませんでした')}}
-function updatePlan(){const start=$('planStart')?.value||localDay();const elapsed=Math.max(0,Math.min(30,Math.floor((new Date(localDay()+'T12:00:00')-new Date(start+'T12:00:00'))/86400000)+1));const left=Math.max(1,30-elapsed);const created=words.filter(w=>w.createdAt&&w.createdAt.slice(0,10)>=start).length;const practiced=words.filter(w=>w.reviewedAt&&w.reviewedAt.slice(0,10)>=start).length;const createGoal=Math.max(60,Math.ceil(Math.max(0,1800-created)/left));const studyGoal=Math.max(60,Math.ceil(Math.max(0,1800-practiced)/left));$('planResult').textContent=`${elapsed}日目 / 残り${left}日｜作成 ${created}語・学習記録 ${practiced}語｜1日あたり作成 ${createGoal}語以上、学習 ${studyGoal}語以上`;}
+function updatePlan(){
+ const el=$('planResult');if(!el)return;
+ const start=$('planStart')?.value||localDay(),today=localDay();
+ const startMs=Date.parse(start+'T12:00:00'),todayMs=Date.parse(today+'T12:00:00');
+ if(!Number.isFinite(startMs))return;
+ const elapsed=Math.max(0,Math.floor((todayMs-startMs)/86400000)+1);
+ const left=Math.max(0,30-elapsed);
+ const created=words.filter(w=>w.createdAt&&w.createdAt.slice(0,10)>=start&&w.createdAt.slice(0,10)<=today).length;
+ const practiced=words.filter(w=>w.reviewedAt&&w.reviewedAt.slice(0,10)>=start&&w.reviewedAt.slice(0,10)<=today).length;
+ const createdToday=words.filter(w=>w.createdAt&&w.createdAt.slice(0,10)===today).length;
+ const practicedToday=words.filter(w=>w.reviewedAt&&w.reviewedAt.slice(0,10)===today).length;
+ const due=words.filter(w=>reviewDue(w)).length;
+ const dailyCreate=left?Math.max(60,Math.ceil(Math.max(0,1800-created)/left)):Math.max(0,1800-created);
+ const dailyStudy=left?Math.max(60,Math.ceil(Math.max(0,1800-practiced)/left)):Math.max(0,1800-practiced);
+ const currentDay=Math.min(30,elapsed+1);
+ const line=left?`残り${left}日間の目安：毎日 新規作成${dailyCreate}語・未学習分の学習${dailyStudy}語`:`30日間が終了しました。未達分：作成${Math.max(0,1800-created)}語・学習${Math.max(0,1800-practiced)}語`;
+ el.replaceChildren();
+ const title=document.createElement('strong');title.textContent=`${elapsed}日経過 ／ 作成${created}語 ／ 学習済み${practiced}語`;el.append(title);
+ for(const text of [`今日の新規作成：${createdToday}語（基本目標60語）`,`今日学習した単語：${practicedToday}語（基本目標60語）`,`今日の復習対象：${due}語（新規60語とは別枠）`,line]){const row=document.createElement('p');row.textContent=text;row.className='plan-line';el.append(row)}
+}
+
 function diaryList(){const root=$('diaryList');root.replaceChildren();const data=readDiary();for(const day of Object.keys({...timeState.daily,...data}).sort().reverse().slice(0,60)){const row=document.createElement('button');row.type='button';row.className='secondary diary-row';row.textContent=`${day}　${Math.floor(Number(timeState.daily[day]||0)/60000)}分　${(data[day]||'コメント未入力').slice(0,55)}`;row.onclick=()=>{$('diaryDate').value=day;diaryShow()};root.append(row)}}
 function addDailyDate(){const day=$('dailyDate').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||new Date(day+'T00:00:00').toString()==='Invalid Date')return toast('日付を選択してください');if(!(day in timeState.daily)){timeState.daily[day]=0;timeSave()}renderDaily()}
 function timeResume(){if(active||document.hidden)return;active=true;lastTick=performance.now()}
@@ -1074,7 +1130,7 @@ $('addMarkedPair').onclick=addMarkedPair;$('pasteClipboard').onclick=async()=>{t
  if(!targets.length)return toast('対象の単語がありません');
  if(!confirm(`${targets.length}語の正解・不正解回数をすべて0に戻しますか？\nこの操作は元に戻せません。単語と学習時間は残ります。`))return;
  const previous=structuredClone(words);
- for(const w of targets){w.correctCount=0;w.wrongCount=0}
+ for(const w of targets){w.correctCount=0;w.wrongCount=0;w.reviewStreak=0;delete w.nextReviewAt}
  try{await save()}catch(e){words=previous;rebuild(false,false);drawWords();return}
  rebuild(false,false);drawWords();toast(`${targets.length}語の正誤回数をリセットしました`);
 }
@@ -1088,7 +1144,7 @@ $('resetAllViews').onclick=async()=>{
  try{await save()}catch(e){words.forEach((w,i)=>w.viewCount=before[i]);toast('保存できませんでした。閲覧回数は変更していません');return}
  drawWords();drawCard();toast(`全${count}語の閲覧回数を0にしました`);
 };
-$('resetSelectedCounts').onclick=()=>resetReviewCounts(new Set(selectedIds));
+initEditPhraseChips();$('unfileSelected').onclick=unfileSelectedWords;$('resetSelectedCounts').onclick=()=>resetReviewCounts(new Set(selectedIds));
 $('selectVisible').onclick=()=>{for(const w of visibleWords())selectedIds.add(w.id);drawWords()};$('clearSelection').onclick=()=>{selectedIds.clear();drawWords()};$('bulkDelete').onclick=async()=>{const ids=new Set([...selectedIds].filter(id=>words.some(w=>w.id===id)));if(!ids.size)return toast('削除する単語を選択してください');if(!confirm(`${ids.size}語を削除しますか？ この操作は元に戻せません。`))return;words=words.filter(w=>!ids.has(w.id));selectedIds.clear();await save();drawWords();rebuild();toast(`${ids.size}語を削除しました`)};$('showUnverified').onclick=showUnverifiedCandidates;$('showAllCandidates').onclick=showAllCandidates;$('allSelect').onclick=()=>{candidates.forEach(w=>w.selected=true);renderCandidates()};$('noneSelect').onclick=()=>{candidates.forEach(w=>w.selected=false);renderCandidates()};$('saveCandidates').onclick=async()=>{let unverified=candidates.filter(w=>w.selected&&!w.verified);if(unverified.length&&!confirm(`${unverified.length}件が原文と未照合です。確認せずに登録しますか？`))return;let selected=candidates.filter(w=>w.selected).map(w=>({en:normalize(w.en),ja:clean(w.ja),kind:w.kind||'headword',note:clean(w.note||'').slice(0,500)}));if(!selected.length)return toast('単語を選択してください');if(selected.some(w=>!w.en||!w.ja))return toast('日本語訳を入力してください');const invalid=selected.filter(w=>!/^[a-z][a-z' -]*$/.test(w.en));if(invalid.length)return toast('英語表記に問題があります。候補を修正してください');const previous=structuredClone(words);let n=mergeIncoming(selected.map(w=>({...w,id:uid(),status:'new',folderId:folders.some(f=>f.id===wordFolderFilter)?wordFolderFilter:'',createdAt:new Date().toISOString()})));if(!n){words=previous;return toast('選択した単語はすべて登録済みです')}try{await save()}catch(e){words=previous;toast('登録できませんでした。候補は残っています。設定・保護でエラー詳細を確認してください');return}candidates=[];$('paste').value='';stopAuto();if('speechSynthesis'in window)speechSynthesis.cancel();rebuild(false,false);refreshFolderUI();drawWords();tab('words');toast(n+'語を登録しました')};$('addManual').onclick=()=>editor();$('search').oninput=drawWords;$('selectNumberRange').onclick=()=>selectWordRange(Number($('rangeStart').value),Number($('rangeEnd').value));$('selectNext60').onclick=selectNext60Words;$('createFolder').onclick=createFolder;$('moveToFolder').onclick=moveSelectedToFolder;$('wordFolderFilter').onchange=()=>{wordFolderFilter=$('wordFolderFilter').value;drawWords()};$('studyFolderFilter').onchange=()=>{studyFolderFilter=$('studyFolderFilter').value;stopAuto();rebuild(false,false)};
 $('editorForm').addEventListener('submit',async e=>{if(e.submitter?.value!=='save')return;e.preventDefault();let en=normalize($('editEn').value),ja=clean($('editJa').value),ipa=$('editIpa').value.trim().slice(0,80),stress=$('editStress').value.trim().toLowerCase().replace(/[’‘]/g,"'").slice(0,110),note=clean($('editNote').value).slice(0,500),kind=$('editKind').value;if(!en||!ja)return;if(stress&&(!stress.includes("'")||stress.replace(/'/g,'')!==en)){toast("アクセント表記は英単語の強勢位置にアポストロフィを追加してください");return}if(editing){let w=words.find(w=>w.id===editing);if(w)Object.assign(w,{en,ja,ipa,stress,note,kind})}else if(words.some(w=>normalize(w.en)===en))return toast('同じ単語が登録済みです');else words.push({id:uid(),en,ja,ipa,stress,note,kind,status:'new',folderId:folders.some(f=>f.id===wordFolderFilter)?wordFolderFilter:'',createdAt:new Date().toISOString(),correctCount:0,wrongCount:0});$('editor').close();stopAuto();if('speechSynthesis'in window)speechSynthesis.cancel();await save();rebuild(false,false);refreshFolderUI();drawWords();toast('保存しました');if(!$('words').hidden)scrollToWordListBottom()});
 $('exportEncrypted').onclick=exportEncrypted;$('importEncrypted').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{await importData(JSON.parse(await f.text()),'encrypted')}catch(err){toast('復元失敗: パスワードまたはファイルを確認してください')}finally{e.target.value=''}};$('importLegacy').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{await importData(JSON.parse(await f.text()),'legacy')}catch(err){toast('有効な旧バックアップではありません')}finally{e.target.value=''}};$('migrateAgain').onclick=async()=>{try{let r=await migrate();rebuild();toast(`旧版 ${r.found} 語を確認、${r.added} 語を追加`)}catch{toast('旧データの移行に失敗しました')}};$('deleteAll').onclick=async()=>{if(!confirm('新保存領域の全単語と学習履歴を削除します。暗号化バックアップを取りましたか？'))return;if(!confirm('本当に削除しますか？ 旧版の保存データは残ります。'))return;words=[];await save();rebuild();drawWords();toast('新保存領域を削除しました')}}
