@@ -307,3 +307,15 @@ body.study-fullscreen #study #card #front .stress-accent{
 .folder-edit-tools{margin:12px 0}
 .danger-zone{margin:14px 0;padding:10px;border:1px solid #ab6970;border-radius:10px}
 .danger-zone summary{cursor:pointer;font-weight:600}
+
+/* v90: Never clip the translation beneath the fixed-height study viewport. */
+body.study-fullscreen{height:auto!important;min-height:100dvh!important;overflow-y:auto!important}
+body.study-fullscreen main{height:auto!important;max-height:none!important;overflow:visible!important;min-height:100dvh!important}
+body.study-fullscreen #study{overflow:visible!important;flex:0 0 auto!important;min-height:0!important}
+#study #card,body.study-fullscreen #study #card{height:auto!important;min-height:clamp(380px,55dvh,640px)!important;max-height:none!important;overflow:visible!important;flex:0 0 auto!important;justify-content:center!important;padding:62px 12px 64px!important;gap:clamp(12px,2dvh,24px)!important}
+#study #card #back,body.study-fullscreen #study #card #back{white-space:pre-wrap!important;word-break:normal!important;overflow-wrap:anywhere!important;line-height:1.45!important;font-size:clamp(24px,7.5vw,43px)!important;max-width:100%!important;text-align:center!important;flex:0 0 auto!important}
+#study #card #front,body.study-fullscreen #study #card #front{max-width:100%!important}
+#study #card .card-view-count{bottom:12px!important}
+.favorite-word-button{min-height:42px;background:#fff0bc;color:#6d5010}
+.favorite-edit{display:flex!important;align-items:center;gap:10px;font-size:16px!important}
+.favorite-edit input{width:22px;height:22px;flex:0 0 auto}
